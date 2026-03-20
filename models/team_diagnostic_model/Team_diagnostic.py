@@ -388,41 +388,6 @@ class TeamDiagnosticModel:
     # Private helpers
     # ─────────────────────────────────────────────────────────────────────
 
-    def _validate_and_coerce(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Validate input DataFrame and coerce data types.
-
-        Parameters
-        ----------
-        df : DataFrame
-            Input team statistics DataFrame
-
-        Returns
-        -------
-        DataFrame
-            Validated and coerced copy of the input
-        """
-        if not isinstance(df, pd.DataFrame):
-            raise TypeError(f"Expected DataFrame, got {type(df).__name__}")
-
-        if df.empty:
-            raise ValueError("Input DataFrame is empty")
-
-        out = df.copy()
-
-        # Ensure numeric columns are coerced to float
-        numeric_cols = [
-            "offense_total_epa_pass", "offense_total_epa_run",
-            "defense_total_epa_pass", "defense_total_epa_run",
-            "wins", "losses",
-        ]
-
-        for col in numeric_cols:
-            if col in out.columns:
-                out[col] = pd.to_numeric(out[col], errors="coerce")
-
-        return out
-
     # ─────────────────────────────────────────────────────────────────────
     # Public API
     # ─────────────────────────────────────────────────────────────────────
