@@ -1,0 +1,82 @@
+name: Copilot Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Copilot review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            try {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: prNumber,
+                event: 'COMMENT',
+                body: '@github-copilot-bot, please review this PR.'
+              });
+              console.log('Successfully requested a Copilot review.');
+            } catch (error) {
+              console.error('Failed to request Copilot review:', error);
+              core.warning(`Copilot review request skipped: ${error.message}`);
+            }
+
+  auto_approve_owner_pr:
+    if: ${{ github.event.pull_request.user.login == github.repository_owner && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-approve owner PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.pull_request.number;
+            const headSha = context.payload.pull_request.head.sha;
+
+            try {
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                owner,
+                repo,
+                pull_number,
+                per_page: 100,
+              });
+
+              const alreadyApprovedForHead = reviews.some((r) =>
+                r.user?.login === 'github-actions[bot]' &&
+                r.state === 'APPROVED' &&
+                r.commit_id === headSha
+              );
+
+              if (alreadyApprovedForHead) {
+                console.log('Already approved by github-actions[bot] for current head SHA.');
+                return;
+              }
+
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number,
+                event: 'APPROVE',
+                commit_id: headSha,
+                body: 'Auto-approval for solo-maintainer workflow.',
+              });
+
+              console.log('Successfully auto-approved owner PR.');
+            } catch (error) {
+              core.warning(`Auto-approval skipped: ${error.message}`);
+            }

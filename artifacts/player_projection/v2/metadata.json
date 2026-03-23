@@ -1,0 +1,75 @@
+{
+  "model_name": "player_projection",
+  "version": "v2",
+  "saved_at": "2026-03-23T01:16:37.142989+00:00",
+  "feature_names": [
+    "forty_yard",
+    "vertical_in",
+    "bench_reps",
+    "broad_jump_in",
+    "three_cone",
+    "shuttle",
+    "height_in",
+    "weight_lbs",
+    "speed_score",
+    "agility_score",
+    "burst_score",
+    "strength_score",
+    "size_score",
+    "age",
+    "pos_QB",
+    "pos_SKILL",
+    "pos_OL",
+    "pos_DL",
+    "pos_LB",
+    "pos_DB",
+    "pos_SPEC",
+    "missing_forty_yard",
+    "missing_vertical_in",
+    "missing_bench_reps",
+    "missing_broad_jump_in",
+    "missing_three_cone",
+    "missing_shuttle"
+  ],
+  "mode": "athletic",
+  "excluded_features": [
+    "draft_value_score",
+    "draft_value_percentile",
+    "round_x_draft_value"
+  ],
+  "best_params": {
+    "learning_rate": 0.19172728460520896,
+    "max_depth": 3,
+    "min_child_weight": 6,
+    "subsample": 0.9423444195027318,
+    "colsample_bytree": 0.5071969601466384,
+    "reg_alpha": 0.5435496747233014,
+    "reg_lambda": 0.010603179168684066,
+    "gamma": 4.339005964527391
+  },
+  "best_cv_rmse": 19.3426,
+  "holdout_rmse": 11.1505,
+  "holdout_mae": 8.7689,
+  "baseline_rmse": 14.916,
+  "beat_baseline": true,
+  "n_estimators": 320,
+  "train_rows": 4053,
+  "holdout_rows": 823,
+  "folds": [
+    {
+      "train_end": 2014,
+      "val_start": 2015,
+      "val_end": 2016
+    },
+    {
+      "train_end": 2016,
+      "val_start": 2017,
+      "val_end": 2018
+    },
+    {
+      "train_end": 2018,
+      "val_start": 2019,
+      "val_end": 2020
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+data_lake:
+  base_url: "https://claw-hub.tailca9d37.ts.net"
+  timeout:
+    connect: 15  # seconds
+    read: 120    # seconds — full table scans over Tailscale need more headroom
+  retry:
+    max_attempts: 3
+    wait_min: 1   # seconds
+    wait_max: 10  # seconds
+    # Retry on: 5xx responses + connection errors only
