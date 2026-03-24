@@ -1,27 +1,20 @@
 [
   {
     "type": "mcp-server",
-    "uri": "mcp://io.github.git",
-    "owner": "SamuelMolero26",
-    "repo": "nfl-data-platform",
-    "capabilities": {
-      "codeReview": true
+    "name": "playwright",
+    "command": "npx",
+    "args": ["playwright-mcp"]
+  },
+  {
+    "type": "mcp-server",
+    "name": "ssh",
+    "command": "npx",
+    "args": ["ssh-mcp"],
+    "env": {
+      "SSH_HOST": "100.121.235.17",
+      "SSH_USER": "oosam",
+      "SSH_PASSWORD": "${SSH_PASSWORD}"
     }
-  },
-  {
-    "type": "mcp-server",
-    "uri": "mcp://oraios.serena"
-  },
-  {
-    "type": "mcp-server",
-    "uri": "mcp://playwright"
-  },
-  {
-    "type": "mcp-server",
-    "uri": "mcp://ssh",
-    "host": "100.121.235.17",
-    "user": "oosam",
-    "password": "${SSH_PASSWORD}"
   }
 ]
 
