@@ -20,6 +20,12 @@ __pycache__/
 # VS Code
 .vscode/
 
+# Claude Code
+.claude/
+
+# GitHub Copilot
+.github/copilot/config.json
+
 # Large/local artifacts (keep out of git)
 artifacts/
 notebook/outputs/
