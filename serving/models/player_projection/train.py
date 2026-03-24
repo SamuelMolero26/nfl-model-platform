@@ -15,8 +15,8 @@ Two training modes
   athletic (v2) : drops draft-value-chart features so the model learns from
                   combine / athletic signal only, independent of draft consensus
 
-Usage:
-    python -m serving.models.player_projection.train
+for testing / comparison:
+    python -m serving.models.player_projection.train (full smaller trial size)
     python -m serving.models.player_projection.train --mode athletic --version v2
     python -m serving.models.player_projection.train --trials 200 --version v3
 """
