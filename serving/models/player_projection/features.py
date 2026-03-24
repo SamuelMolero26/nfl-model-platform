@@ -128,6 +128,7 @@ FEATURE_COLS = (
     + [f"pos_{g}" for g in POSITION_GROUP_ORDER]
     + [f"missing_{c}" for c in DRILL_COLS]
     + ["round_x_draft_value"]
+    + ["spec_x_burst", "spec_x_agility", "spec_x_speed"]
 )
 
 
@@ -270,6 +271,13 @@ def build_features(
     base["round_x_draft_value"] = base.get(
         "draft_round", pd.Series(np.nan, index=base.index)
     ) * base.get("draft_value_score", pd.Series(np.nan, index=base.index))
+
+    # Interactions: SPEC position × athletic scores
+    # Special teamers' career value is driven almost entirely by athleticism
+    spec = base["pos_SPEC"]
+    base["spec_x_burst"]   = spec * base.get("burst_score",   pd.Series(np.nan, index=base.index))
+    base["spec_x_agility"] = spec * base.get("agility_score", pd.Series(np.nan, index=base.index))
+    base["spec_x_speed"]   = spec * base.get("speed_score",   pd.Series(np.nan, index=base.index))
 
     available_features = [c for c in FEATURE_COLS if c in base.columns]
     result = base[available_features].copy()
