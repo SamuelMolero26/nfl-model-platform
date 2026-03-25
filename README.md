@@ -2,15 +2,6 @@
 
 Platform to train and serve NFL draft analytics models (career value, draft optimizer, health risk, etc.) backed by the `nfl-data-platform` API and a versioned model registry. This README tracks how to run what already exists and what remains per `files/plan.md`.
 
-## Status (from plan.md)
-- ✅ Data lake client
-- ✅ Model infrastructure (BaseModel + Registry)
-- ✅ Player Projection (XGBoost, temporal CV, artifacts under `artifacts/player_projection/v1`)
-- 🔲 Draft Optimizer, Team Diagnosis, Career Simulator, Roster Fit, Positional Flexibility, Health Analyzer
-- 🔲 NullClaw (assistant + tools)
-- 🔲 FastAPI serving layer
-- 🔲 Validation case studies
-
 ## Repo Layout (selected)
 - `serving/data_lake_client/` async client + named queries
 - `serving/models/` base classes, registry, and per-model packages (`player_projection`, etc.)
