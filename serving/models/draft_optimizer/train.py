@@ -150,7 +150,8 @@ def _adp_baseline_score(df: pd.DataFrame) -> float:
             avail_df = year_df.loc[list(available)]
             best_idx = avail_df["draft_value_percentile"].idxmax()
             best_row = year_df.loc[best_idx]
-            expected = expected_av.get(int(best_row["pick"]) if pd.notna(best_row["pick"]) else 0, 0.0)
+            expected_pick = int(row["pick"]) if pd.notna(row["pick"]) else 0
+            expected = expected_av.get(expected_pick, 0.0)
             total_over_expected.append(float(best_row["w_av"]) - expected)
             available.discard(best_idx)
 
