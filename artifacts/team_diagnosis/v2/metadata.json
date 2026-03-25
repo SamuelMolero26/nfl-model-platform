@@ -1,16 +1,14 @@
 {
   "model_name": "team_diagnosis",
-  "version": "v1",
-  "saved_at": "2026-03-25T16:56:08.062542+00:00",
+  "version": "v2",
+  "saved_at": "2026-03-25T17:03:30.458545+00:00",
   "feature_names": [
     "ew_off_pass_epa",
     "ew_off_run_epa",
     "ew_def_pass_epa",
     "ew_def_run_epa",
-    "ew_off_pass_epa_ave",
     "ew_def_pass_epa_ave",
-    "ew_turnover_margin",
-    "ew_success_rate_ratio"
+    "ew_turnover_margin"
   ],
   "train_rows": 701,
   "holdout_rows": 64,
@@ -24,9 +22,9 @@
     2021,
     2022
   ],
-  "holdout_r2": 0.7446,
-  "holdout_mae": 1.1295,
-  "holdout_rmse": 1.4945,
+  "holdout_r2": 0.746,
+  "holdout_mae": 1.1245,
+  "holdout_rmse": 1.4903,
   "baseline_rmse": 2.9919,
   "beat_baseline": true,
   "ew_features": [
@@ -34,20 +32,16 @@
     "ew_off_run_epa",
     "ew_def_pass_epa",
     "ew_def_run_epa",
-    "ew_off_pass_epa_ave",
     "ew_def_pass_epa_ave",
-    "ew_turnover_margin",
-    "ew_success_rate_ratio"
+    "ew_turnover_margin"
   ],
   "ew_source_cols": [
     "offense_total_epa_pass",
     "offense_total_epa_run",
     "defense_total_epa_pass",
     "defense_total_epa_run",
-    "offense_ave_epa_pass",
     "defense_ave_epa_pass",
-    "ew_turnover_margin",
-    "ew_success_rate_ratio"
+    "ew_turnover_margin"
   ],
   "all_feature_cols": [
     "offense_total_epa_pass",
@@ -80,5 +74,5 @@
     "defense_n_fumbles_lost_run",
     "offense_n_fumbles_lost_pass"
   ],
-  "ridge_alpha": 1.0
+  "ridge_alpha": 10.0
 }
