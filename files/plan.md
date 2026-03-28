@@ -13,11 +13,12 @@
 | 1 | Data Lake Client | ✅ Done |
 | 2 | Model Infrastructure (BaseModel + Registry) | ✅ Done |
 | 3 | Player Projection model | ✅ Done |
-| 4 | Draft Optimizer model | 🔲 Pending |
-| 5 | Team Diagnosis, Career Simulator, Roster Fit, Positional Flexibility, Health Analyzer | 🔲 Pending |
-| 6 | NullClaw (Claude assistant — models as tools) | 🔲 Pending |
-| 7 | FastAPI serving layer | 🔲 Pending |
-| 8 | Temporal validation + case studies | 🔲 Pending |
+| 4 | Positional Flexibility model | ✅ Done |
+| 5 | Draft Optimizer model | 🔲 Pending |
+| 6 | Team Diagnosis, Career Simulator, Roster Fit, Health Analyzer | 🔲 Pending |
+| 7 | NullClaw (Claude assistant — models as tools) | 🔲 Pending |
+| 8 | FastAPI serving layer | 🔲 Pending |
+| 9 | Temporal validation + case studies | 🔲 Pending |
 
 ---
 
@@ -207,14 +208,38 @@ All features pulled via `POST /query` against the data lake curated tables:
 
 ---
 
-## Phase 5 — Remaining 5 Models 🔲
+## Phase 4 — Positional Flexibility ✅
+
+- **Algorithm**: KNN (k=15, inverse-distance weighted) in standardized athletic feature space
+- **Why KNN over OvR classifiers**: Binary classifiers (XGBoost OvR) suffered from ceiling thresholds — in-sample the model assigned near-1.0 to all positives, pushing the precision-target threshold to ≥0.99. Any unseen player scored 0.3–0.7 and was never "viable" at any alternative position. KNN answers the correct question directly: "which real players had a similar athletic profile, and what positions did they play?"
+- **Features**: Pure physical/athletic only — combine measurables + gold athletic scores + 3 derived features (BMI, speed-to-weight, relative-size). No draft value signals. Standardized with `StandardScaler` at train time.
+- **Labels**: Archetype affinity by default — `exp(−dist(P, archetype_G) / sigma_G) × career_quality` per position group G (scores high when a player's athletic profile resembles position G's mean combine profile, regardless of snaps played). Falls back to snap-share × career quality (`label_strategy="snap_share"`) when historical snap data is available.
+- **Scoring**: For query player P with scaled features x:
+  - Find k=15 nearest neighbors by Euclidean distance
+  - `P(G) = Σ(neighbor_i label_G × w_i) / Σ(w_i)`, where `w_i = 1/(d_i + ε)`
+  - Output is continuous [0,1] — no threshold calibration required
+- **Thresholds**: Percentile-based against training population:
+  - `viable_backup`: score ≥ 70th percentile of training label distribution for that group
+  - `package_player`: score ≥ 50th percentile
+- **Evaluation metrics**: Spearman ρ (rank correlation) + MAE between predicted and actual snap-share labels — no binary ROC/PR needed
+- **Comparables**: k nearest neighbors returned directly as the explanation ("3 of your 10 closest athletic comps played LB")
+- **Output**: `{position: {probability, percentile, viable_backup, package_player}}` + `primary_group` + `flex_candidates` + `comparables`
+- **Training**: No Optuna, no CV loops — just fit `StandardScaler` + index training features. Runs in seconds.
+
+### Files
+- `serving/models/positional_flexibility/features.py` ✅ — `build_flex_features()`, `fetch_flex_features()`, `build_snap_labels()`, `SPEC_MIN_SNAP_SHARE`, `require_snap`, `label_strategy` return
+- `serving/models/positional_flexibility/model.py` ✅ — `PositionalFlexibilityModel` (KNN), `_score_matrix()`, percentile thresholds, `find_comparables()`
+- `serving/models/positional_flexibility/train.py` ✅ — scaler fit, percentile threshold derivation, holdout evaluation, artifact + cache save
+
+---
+
+## Phase 5 — Remaining 3 Models 🔲
 
 | Model | Algorithm | Key Output |
 |-------|-----------|-----------|
 | Team Diagnosis | Multi-task XGBoost | Positional weakness scores (0–1 per position group) |
 | Career Simulator | Cox PH (lifelines) | Projected games played + career arc percentiles |
 | Roster Fit | Cosine similarity + Ridge weights | Fit score (0–100) per prospect-team pair |
-| Positional Flexibility | XGBoost multi-label | Secondary positions player can learn |
 | Health Analyzer | Cox PH (lifelines) | Injury risk probability per season |
 
 All share feature extractors from `training/feature_extractors/`.
