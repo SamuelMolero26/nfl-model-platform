@@ -235,7 +235,7 @@ def _impute_drills(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Snap-share label construction (Option B)
+# Archetype label construction (default strategy)
 # ---------------------------------------------------------------------------
 
 

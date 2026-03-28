@@ -213,11 +213,7 @@ All features pulled via `POST /query` against the data lake curated tables:
 - **Algorithm**: KNN (k=15, inverse-distance weighted) in standardized athletic feature space
 - **Why KNN over OvR classifiers**: Binary classifiers (XGBoost OvR) suffered from ceiling thresholds — in-sample the model assigned near-1.0 to all positives, pushing the precision-target threshold to ≥0.99. Any unseen player scored 0.3–0.7 and was never "viable" at any alternative position. KNN answers the correct question directly: "which real players had a similar athletic profile, and what positions did they play?"
 - **Features**: Pure physical/athletic only — combine measurables + gold athletic scores + 3 derived features (BMI, speed-to-weight, relative-size). No draft value signals. Standardized with `StandardScaler` at train time.
-- **Labels**: Snap-share × career quality — `clip(snap_share_G / 0.30, 0, 1) × clip(car_av / 8, 0, 1)` per position group G.
-  - Non-SPEC positions: ≥5% career snap share minimum (`MIN_SNAP_SHARE = 0.05`)
-  - SPEC: ≥30% career ST snap share (`SPEC_MIN_SNAP_SHARE = 0.30`) — prevents PAT-unit noise from inflating SPEC base rate
-  - ST snaps (`st_snaps`) drive SPEC label; any position (LB/DB/SKILL) accumulating ST snaps earns SPEC credit
-  - Falls back to declared-position soft label when snap data unavailable (`label_strategy` stamped in metadata)
+- **Labels**: Archetype affinity by default — `exp(−dist(P, archetype_G) / sigma_G) × career_quality` per position group G (scores high when a player's athletic profile resembles position G's mean combine profile, regardless of snaps played). Falls back to snap-share × career quality (`label_strategy="snap_share"`) when historical snap data is available.
 - **Scoring**: For query player P with scaled features x:
   - Find k=15 nearest neighbors by Euclidean distance
   - `P(G) = Σ(neighbor_i label_G × w_i) / Σ(w_i)`, where `w_i = 1/(d_i + ε)`
@@ -237,14 +233,13 @@ All features pulled via `POST /query` against the data lake curated tables:
 
 ---
 
-## Phase 5 — Remaining 4 Models 🔲
+## Phase 5 — Remaining 3 Models 🔲
 
 | Model | Algorithm | Key Output |
 |-------|-----------|-----------|
 | Team Diagnosis | Multi-task XGBoost | Positional weakness scores (0–1 per position group) |
 | Career Simulator | Cox PH (lifelines) | Projected games played + career arc percentiles |
 | Roster Fit | Cosine similarity + Ridge weights | Fit score (0–100) per prospect-team pair |
-| Positional Flexibility | OvR calibrated classifiers | Probability scores for all 7 position groups — physical qualification only | ✅ Done |
 | Health Analyzer | Cox PH (lifelines) | Injury risk probability per season |
 
 All share feature extractors from `training/feature_extractors/`.

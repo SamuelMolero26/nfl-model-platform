@@ -51,7 +51,7 @@ from .features import (
     QUALIFIED_THRESHOLD,
 )
 
-# Percentile thresholds — position in training populatio---------
+# Percentile thresholds — position in training population
 
 VIABLE_BACKUP_PERCENTILE = 70  # score ≥ 70th pct of training distribution
 PACKAGE_PLAYER_PERCENTILE = 50  # score ≥ 50th pct of training distribution

@@ -112,7 +112,6 @@ async def run_training(
         holdout_metrics = flex_model.evaluate(X_holdout, y_holdout)
 
         # ── AUC-ROC per position ─────────────────────────────────────────
-        from serving.models.positional_flexibility.features import FEATURE_COLS as _FEAT
         X_holdout_scaled = flex_model._scale(X_holdout[feature_cols])
         flex_preds = flex_model._knn_scores(X_holdout_scaled)  # (n × n_pos)
 
