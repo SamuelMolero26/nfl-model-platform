@@ -46,7 +46,6 @@ from models.team_diagnostic_model.Team_diagnostic import (
     _OFFENSE_WEIGHT,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -178,20 +177,32 @@ class TeamDiagnosisModel(BaseModel):
         row = rows.iloc[0]
 
         unit_cols = [
-            "pass_offense_z", "run_offense_z",
-            "pass_defense_z", "run_defense_z", "turnover_z",
+            "pass_offense_z",
+            "run_offense_z",
+            "pass_defense_z",
+            "run_defense_z",
+            "turnover_z",
         ]
         composite_cols = [
-            "offense_composite_z", "defense_composite_z", "team_efficiency_z",
+            "offense_composite_z",
+            "defense_composite_z",
+            "team_efficiency_z",
         ]
         rank_cols = [
-            "pass_offense_rank", "run_offense_rank",
-            "pass_defense_rank", "run_defense_rank",
-            "team_efficiency_rank", "overperformance_rank",
+            "pass_offense_rank",
+            "run_offense_rank",
+            "pass_defense_rank",
+            "run_defense_rank",
+            "team_efficiency_rank",
+            "overperformance_rank",
         ]
         cap_cols = [
-            "offense_cap_hit", "defense_cap_hit", "total_cap_hit",
-            "offense_cap_epa_roi", "defense_cap_epa_roi", "cap_efficiency_score",
+            "offense_cap_hit",
+            "defense_cap_hit",
+            "total_cap_hit",
+            "offense_cap_epa_roi",
+            "defense_cap_epa_roi",
+            "cap_efficiency_score",
         ]
 
         def _pick(cols):
@@ -230,7 +241,9 @@ class TeamDiagnosisModel(BaseModel):
             return {"r2": None, "mae": None, "rmse": None}
 
         preds = valid["expected_wins"].values
-        actuals = valid["wins"].values if "wins" in valid.columns else y.values[: len(preds)]
+        actuals = (
+            valid["wins"].values if "wins" in valid.columns else y.values[: len(preds)]
+        )
 
         return {
             "r2": round(float(r2_score(actuals, preds)), 4),
@@ -267,9 +280,7 @@ class TeamDiagnosisModel(BaseModel):
             masker=shap.maskers.Independent(data=X_scaled),
         )
 
-    def _compute_row_shap(
-        self, row: pd.Series, scored_cols
-    ) -> Optional[dict]:
+    def _compute_row_shap(self, row: pd.Series, scored_cols) -> Optional[dict]:
         """
         Compute SHAP values for the expected-wins prediction of a single team-season.
 
@@ -289,8 +300,7 @@ class TeamDiagnosisModel(BaseModel):
         sv = self._explainer.shap_values(X_scaled)
 
         shap_dict = {
-            col: round(float(val), 4)
-            for col, val in zip(EW_FEATURE_COLS, sv[0])
+            col: round(float(val), 4) for col, val in zip(EW_FEATURE_COLS, sv[0])
         }
         return dict(sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True))
 

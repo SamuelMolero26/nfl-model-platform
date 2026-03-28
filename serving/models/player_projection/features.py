@@ -275,9 +275,15 @@ def build_features(
     # Interactions: SPEC position × athletic scores
     # Special teamers' career value is driven almost entirely by athleticism
     spec = base["pos_SPEC"]
-    base["spec_x_burst"]   = spec * base.get("burst_score",   pd.Series(np.nan, index=base.index))
-    base["spec_x_agility"] = spec * base.get("agility_score", pd.Series(np.nan, index=base.index))
-    base["spec_x_speed"]   = spec * base.get("speed_score",   pd.Series(np.nan, index=base.index))
+    base["spec_x_burst"] = spec * base.get(
+        "burst_score", pd.Series(np.nan, index=base.index)
+    )
+    base["spec_x_agility"] = spec * base.get(
+        "agility_score", pd.Series(np.nan, index=base.index)
+    )
+    base["spec_x_speed"] = spec * base.get(
+        "speed_score", pd.Series(np.nan, index=base.index)
+    )
 
     available_features = [c for c in FEATURE_COLS if c in base.columns]
     result = base[available_features].copy()

@@ -122,9 +122,7 @@ def build_features(
 
     if include_target:
         if "wins" not in df.columns:
-            raise ValueError(
-                "'wins' column is required when include_target=True."
-            )
+            raise ValueError("'wins' column is required when include_target=True.")
         result["wins"] = df["wins"]
 
     result = result.set_index(["team", "season"])
