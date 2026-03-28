@@ -116,9 +116,17 @@ class PositionalFlexibilityModel(BaseModel):
             self._whiten = None
             self._train_X = X_scaled
 
-        label_cols = [c for c in LABEL_COLS if c in y.columns]
-        self._train_y = y[label_cols].values.astype(float)
+        # Enforce that all expected label columns are present to keep alignment with
+        # POSITION_GROUP_ORDER and avoid silent misalignment of label indices.
+        missing_labels = [c for c in LABEL_COLS if c not in y.columns]
+        if missing_labels:
+            raise ValueError(
+                f"Missing label columns in training data: {missing_labels}. "
+                "All LABEL_COLS must be present to train PositionalFlexibilityModel."
+            )
 
+        self._label_cols = list(LABEL_COLS)
+        self._train_y = y[self._label_cols].values.astype(float)
         self._train_meta = (
             player_meta.reset_index(drop=True) if player_meta is not None else None
         )
