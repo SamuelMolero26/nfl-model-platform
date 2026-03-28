@@ -145,9 +145,18 @@ class PositionalFlexibilityModel(BaseModel):
         # distributions where p50/p70 collapse to ~0, making all flags meaningless.
         self._train_scores = self._knn_scores(self._train_X)  # (n_train × n_pos) — LOO-safe
 
+        # Enforce 1:1 alignment between label columns and POSITION_GROUP_ORDER.
+        # If any LABEL_COLS were dropped when constructing y, this will fail fast
+        # instead of silently skipping thresholds for some position groups.
+        if self._train_y.shape[1] != len(POSITION_GROUP_ORDER):
+            raise ValueError(
+                "PositionalFlexibilityModel requires a label matrix with one column per "
+                "POSITION_GROUP_ORDER entry. Got "
+                f"{self._train_y.shape[1]} columns for {len(POSITION_GROUP_ORDER)} groups. "
+                "Ensure all LABEL_COLS are present when constructing y."
+            )
+
         for i, grp in enumerate(POSITION_GROUP_ORDER):
-            if i >= self._train_y.shape[1]:
-                continue
             pred_col  = self._train_scores[:, i]   # continuous predicted scores
             label_col = self._train_y[:, i]        # raw labels
 
