@@ -277,7 +277,9 @@ def _add_archetype_labels(
     sigmas: dict[str, float] = {}
 
     for grp in POSITION_GROUP_ORDER:
-        qualified_mask = (df["pos_group"] == grp) & (df["car_av"] >= QUALIFIED_THRESHOLD)
+        qualified_mask = (df["pos_group"] == grp) & (
+            df["car_av"] >= QUALIFIED_THRESHOLD
+        )
         fallback_mask = df["pos_group"] == grp
 
         if qualified_mask.sum() >= 10:
@@ -662,7 +664,7 @@ def build_flex_features(
                 result[col] = base[col]
 
     index_arrays = [base["player_name"], base["draft_year"]]
-    index_names  = ["player_name", "draft_year"]
+    index_names = ["player_name", "draft_year"]
     if "player_id" in base.columns:
         index_arrays.append(base["player_id"])
         index_names.append("player_id")

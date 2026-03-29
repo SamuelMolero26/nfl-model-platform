@@ -56,6 +56,7 @@ from .features import (
 VIABLE_BACKUP_PERCENTILE = 70  # score ≥ 70th pct of training distribution
 PACKAGE_PLAYER_PERCENTILE = 50  # score ≥ 50th pct of training distribution
 
+
 class PositionalFlexibilityModel(BaseModel):
 
     MODEL_NAME = "positional_flexibility"
@@ -66,11 +67,13 @@ class PositionalFlexibilityModel(BaseModel):
         self.k = k
         self.use_mahalanobis = use_mahalanobis
         self._scaler: Optional[StandardScaler] = None
-        self._whiten: Optional[np.ndarray] = None     # Cholesky whitening matrix W
+        self._whiten: Optional[np.ndarray] = None  # Cholesky whitening matrix W
         self._nn: Optional[NearestNeighbors] = None
-        self._train_X: Optional[np.ndarray] = None    # (n_train × n_feat) whitened
-        self._train_y: Optional[np.ndarray] = None    # (n_train × n_pos)  labels
-        self._train_scores: Optional[np.ndarray] = None  # (n_train × n_pos) KNN predictions on training set
+        self._train_X: Optional[np.ndarray] = None  # (n_train × n_feat) whitened
+        self._train_y: Optional[np.ndarray] = None  # (n_train × n_pos)  labels
+        self._train_scores: Optional[np.ndarray] = (
+            None  # (n_train × n_pos) KNN predictions on training set
+        )
         self._train_meta: Optional[pd.DataFrame] = None
         self._feature_cols: list[str] = []
         self._thresholds: dict[str, dict] = {}
@@ -135,13 +138,15 @@ class PositionalFlexibilityModel(BaseModel):
         # Without LOO, each point finds itself as a neighbor (distance=0, weight=1e6),
         # making predicted scores ≈ raw labels. That produces near-binary threshold
         # distributions where p50/p70 collapse to ~0, making all flags meaningless.
-        self._train_scores = self._knn_scores(self._train_X)  # (n_train × n_pos) — LOO-safe
+        self._train_scores = self._knn_scores(
+            self._train_X
+        )  # (n_train × n_pos) — LOO-safe
 
         for i, grp in enumerate(POSITION_GROUP_ORDER):
             if i >= self._train_y.shape[1]:
                 continue
-            pred_col  = self._train_scores[:, i]   # continuous predicted scores
-            label_col = self._train_y[:, i]        # raw labels
+            pred_col = self._train_scores[:, i]  # continuous predicted scores
+            label_col = self._train_y[:, i]  # raw labels
 
             nonzero_labels = label_col[label_col > 0]
             # Thresholds computed on predictions for label-positive players only.
@@ -150,28 +155,40 @@ class PositionalFlexibilityModel(BaseModel):
             # separate strong fits from weak ones within the true archetype population.
             archetype_pred = pred_col[label_col > 0]
             if len(archetype_pred) >= 10:
-                viable_backup  = float(np.percentile(archetype_pred, VIABLE_BACKUP_PERCENTILE))
-                package_player = float(np.percentile(archetype_pred, PACKAGE_PLAYER_PERCENTILE))
+                viable_backup = float(
+                    np.percentile(archetype_pred, VIABLE_BACKUP_PERCENTILE)
+                )
+                package_player = float(
+                    np.percentile(archetype_pred, PACKAGE_PLAYER_PERCENTILE)
+                )
             else:
                 viable_backup = package_player = float(np.percentile(pred_col, 90))
 
             self._thresholds[grp] = {
-                "viable_backup":  viable_backup,
+                "viable_backup": viable_backup,
                 "package_player": package_player,
             }
             self._label_percentiles[grp] = {
-                "p50":         float(np.percentile(label_col, 50)),
-                "p70":         float(np.percentile(label_col, 70)),
-                "p90":         float(np.percentile(label_col, 90)),
-                "pred_p50":    float(np.percentile(pred_col, 50)),
-                "pred_p70":    float(np.percentile(pred_col, 70)),
-                "pred_p90":    float(np.percentile(pred_col, 90)),
+                "p50": float(np.percentile(label_col, 50)),
+                "p70": float(np.percentile(label_col, 70)),
+                "p90": float(np.percentile(label_col, 90)),
+                "pred_p50": float(np.percentile(pred_col, 50)),
+                "pred_p70": float(np.percentile(pred_col, 70)),
+                "pred_p90": float(np.percentile(pred_col, 90)),
                 # Positive-tier percentiles (what thresholds are now based on)
-                "pos_pred_p50": float(np.percentile(archetype_pred, 50)) if len(archetype_pred) else float("nan"),
-                "pos_pred_p70": float(np.percentile(archetype_pred, 70)) if len(archetype_pred) else float("nan"),
-                "mean":        float(np.mean(label_col)),
-                "base_rate":   float((label_col > 0).mean()),
-                "n_nonzero":   int(len(nonzero_labels)),
+                "pos_pred_p50": (
+                    float(np.percentile(archetype_pred, 50))
+                    if len(archetype_pred)
+                    else float("nan")
+                ),
+                "pos_pred_p70": (
+                    float(np.percentile(archetype_pred, 70))
+                    if len(archetype_pred)
+                    else float("nan")
+                ),
+                "mean": float(np.mean(label_col)),
+                "base_rate": float((label_col > 0).mean()),
+                "n_nonzero": int(len(nonzero_labels)),
             }
 
         self._is_trained = True
@@ -247,7 +264,11 @@ class PositionalFlexibilityModel(BaseModel):
             affinity = float(flex_probs[i])
             t = self._thresholds.get(grp, {})
             # Rank against training predicted scores (same space as affinity)
-            train_col = self._train_scores[:, i] if self._train_scores is not None else self._train_y[:, i]
+            train_col = (
+                self._train_scores[:, i]
+                if self._train_scores is not None
+                else self._train_y[:, i]
+            )
             pct_rank = float(np.mean(train_col <= affinity) * 100)
             scores[grp] = {
                 "affinity_score": round(affinity, 4),
@@ -408,17 +429,17 @@ class PositionalFlexibilityModel(BaseModel):
     def save(self, artifact_dir: Optional[Path] = None) -> Path:
         # Pack all KNN state into self._model so BaseModel.save() pickles it correctly.
         self._model = {
-            "scaler":           self._scaler,
-            "whiten":           self._whiten,
-            "nn":               self._nn,
-            "train_X":          self._train_X,
-            "train_y":          self._train_y,
-            "train_scores":     self._train_scores,
-            "feature_cols":     self._feature_cols,
-            "thresholds":       self._thresholds,
+            "scaler": self._scaler,
+            "whiten": self._whiten,
+            "nn": self._nn,
+            "train_X": self._train_X,
+            "train_y": self._train_y,
+            "train_scores": self._train_scores,
+            "feature_cols": self._feature_cols,
+            "thresholds": self._thresholds,
             "label_percentiles": self._label_percentiles,
-            "k":                self.k,
-            "use_mahalanobis":  self.use_mahalanobis,
+            "k": self.k,
+            "use_mahalanobis": self.use_mahalanobis,
         }
         path = super().save(artifact_dir)
         if self._train_meta is not None:
@@ -438,23 +459,23 @@ class PositionalFlexibilityModel(BaseModel):
 
         state = self._model  # dict packed by save()
         if isinstance(state, dict):
-            self._scaler            = state.get("scaler")
-            self._whiten            = state.get("whiten")
-            self._nn                = state.get("nn")
-            self._train_X           = state.get("train_X")
-            self._train_y           = state.get("train_y")
-            self._train_scores      = state.get("train_scores")
-            self._feature_cols      = state.get("feature_cols", FEATURE_COLS)
-            self._thresholds        = state.get("thresholds", {})
+            self._scaler = state.get("scaler")
+            self._whiten = state.get("whiten")
+            self._nn = state.get("nn")
+            self._train_X = state.get("train_X")
+            self._train_y = state.get("train_y")
+            self._train_scores = state.get("train_scores")
+            self._feature_cols = state.get("feature_cols", FEATURE_COLS)
+            self._thresholds = state.get("thresholds", {})
             self._label_percentiles = state.get("label_percentiles", {})
-            self.k                  = state.get("k", self.k)
-            self.use_mahalanobis    = state.get("use_mahalanobis", False)
+            self.k = state.get("k", self.k)
+            self.use_mahalanobis = state.get("use_mahalanobis", False)
         else:
             # Legacy artifacts saved before this fix — fall back to metadata only
-            self._feature_cols      = self._metadata.get("feature_names", FEATURE_COLS)
-            self._thresholds        = self._metadata.get("thresholds", {})
+            self._feature_cols = self._metadata.get("feature_names", FEATURE_COLS)
+            self._thresholds = self._metadata.get("thresholds", {})
             self._label_percentiles = self._metadata.get("label_percentiles", {})
-            self.k                  = self._metadata.get("k", self.k)
+            self.k = self._metadata.get("k", self.k)
 
         train_path = artifact_dir / "train_features.parquet"
         if train_path.exists():

@@ -14,11 +14,13 @@
 | 2 | Model Infrastructure (BaseModel + Registry) | ✅ Done |
 | 3 | Player Projection model | ✅ Done |
 | 4 | Positional Flexibility model | ✅ Done |
-| 5 | Draft Optimizer model | 🔲 Pending |
-| 6 | Team Diagnosis, Career Simulator, Roster Fit, Health Analyzer | 🔲 Pending |
-| 7 | NullClaw (Claude assistant — models as tools) | 🔲 Pending |
-| 8 | FastAPI serving layer | 🔲 Pending |
-| 9 | Temporal validation + case studies | 🔲 Pending |
+| 5 | Team Diagnosis model | ✅ Done |
+| 6 | Draft Optimizer model | 🔲 Pending |
+| 7 | Career Simulator, Roster Fit | 🔲 Pending |
+| 7b | Health Analyzer | ✅ Done |
+| 8 | NullClaw (Claude assistant — models as tools) | 🔲 Pending |
+| 9 | FastAPI serving layer | 🔲 Pending |
+| 10 | Temporal validation + case studies | 🔲 Pending |
 
 ---
 
@@ -131,7 +133,7 @@ async def get_player_full_profile(client, player_id) -> dict               # sin
 
 ---
 
-## Phase 2 — Model Infrastructure 🔲
+## Phase 2 — Model Infrastructure ✅
 
 **`serving/models/base.py`** — `BaseModel` abstract class:
 ```python
@@ -154,7 +156,7 @@ class BaseModel(ABC):
 
 ---
 
-## Phase 3 — Player Projection 🔧
+## Phase 3 — Player Projection ✅
 
 - Algorithm: XGBoost regressor
 - Target: `car_av` (Career Approximate Value from Pro Football Reference, in `draft_picks` table)
@@ -199,15 +201,6 @@ All features pulled via `POST /query` against the data lake curated tables:
 
 ---
 
-## Phase 4 — Draft Optimizer 🔲
-
-- Algorithm: CVXPY constrained optimization
-- Inputs: Player Projection scores for available prospects + team positional needs + remaining draft picks
-- Constraints: positional quotas, pick value budget, need priority weights
-- Output: ranked list of recommendations with value-over-ADP scores
-
----
-
 ## Phase 4 — Positional Flexibility ✅
 
 - **Algorithm**: KNN (k=15, inverse-distance weighted) in standardized athletic feature space
@@ -237,21 +230,109 @@ All features pulled via `POST /query` against the data lake curated tables:
 
 ---
 
-## Phase 5 — Remaining 4 Models 🔲
+## Phase 5 — Team Diagnosis ✅
 
-| Model | Algorithm | Key Output |
-|-------|-----------|-----------|
-| Team Diagnosis | Multi-task XGBoost | Positional weakness scores (0–1 per position group) |
-| Career Simulator | Cox PH (lifelines) | Projected games played + career arc percentiles |
-| Roster Fit | Cosine similarity + Ridge weights | Fit score (0–100) per prospect-team pair |
-| Positional Flexibility | OvR calibrated classifiers | Probability scores for all 7 position groups — physical qualification only | ✅ Done |
-| Health Analyzer | Cox PH (lifelines) | Injury risk probability per season |
+- **Algorithm**: Multi-task XGBoost — one regressor per position group
+- **Target**: Positional weakness scores (0–1 per position group)
+- **Features**: snap counts, depth charts, injuries, production profiles
+- **Output**: `{position_group: weakness_score}` — higher = weaker = higher draft need
 
-All share feature extractors from `training/feature_extractors/`.
+### Files
+- `serving/models/team_diagnosis/features.py` ✅
+- `serving/models/team_diagnosis/model.py` ✅
+- `serving/models/team_diagnosis/train.py` ✅
 
 ---
 
-## Phase 6 — NullClaw 🔲
+## Phase 6 — Draft Optimizer 🔲
+
+- Algorithm: CVXPY constrained optimization
+- Inputs: Player Projection scores for available prospects + team positional needs + remaining draft picks
+- Constraints: positional quotas, pick value budget, need priority weights
+- Output: ranked list of recommendations with value-over-ADP scores
+
+---
+
+## Phase 7b — Health Analyzer ✅
+
+- **Algorithm**: Stratified Cox Proportional Hazards (Andersen-Gill recurrent events, `lifelines.CoxTimeVaryingFitter`)
+- **Target**: `event = 1` when `report_status == 'Out'` on weekly injury report (regular season only)
+- **Strata**: `position_group` — separate baseline hazard per position so positional injury rates are absorbed into the baseline; coefficients capture within-position risk only
+- **Training**: Walk-forward CV (2 folds) + holdout, L2 penalizer grid search `[0.001, 0.01, 0.1, 0.5, 1.0]`
+- **Evaluation**: Concordance index (c-index) — target ≥ 0.65. Current clean baseline: **~0.59** (leakage-free)
+
+```
+Fold 1: train 2010–2016 → val 2017–2018
+Fold 2: train 2010–2018 → val 2019–2020
+Holdout: 2021–2022  (touched once)
+```
+
+### Feature design
+
+**Primary — workload / overuse (causal mechanism):**
+
+| Feature | Description |
+|---|---|
+| `snap_share_rolling_8wk` | Chronic workload baseline: 8-week rolling mean of played weeks only (excludes injury zeros). Position-aware: `defense_snaps` (normalised) for DL/LB/DB, `offense_pct` for QB/SKILL/OL |
+| `acwr` | Acute:Chronic Workload Ratio = last-week snap share / 8wk chronic baseline. ACWR > 1.3 = high overuse risk. Clipped at 3.0 |
+| `snap_share_vs_pos_median` | Player's chronic load relative to position-group median that week |
+| `season_snap_acceleration` | Last-week snap share minus 8wk trend — captures ramp-up after return from minor injury |
+
+**Secondary — injury history enrichment (prior seasons only, no within-season feedback):**
+
+| Feature | Description |
+|---|---|
+| `career_durability_rate` | `1 - (prior career Out weeks / available weeks)`. 1.0 for never-injured — treated as protective signal |
+| `has_prior_injury` | Binary: any Out week in career before current season |
+| `prior_season_out_weeks` | Out weeks in season-1 specifically (recent injury burden) |
+| `injury_free_streak` | `MAX_WEEK - last_out_week_in_prior_season`. Higher = more recovery runway. Never-injured = 18 |
+
+**Physical profile:** `weight_lbs`, `bmi`, `strength_score`, `speed_score`, `burst_score`
+
+**Biological wear:** `age`, `seasons_played`, `games_played_this_season`, `career_games_played`
+
+### Key design decisions & bugs fixed
+
+1. **C-index sign bug** — `concordance_index(event, -risk)` was producing inverted scores. Fixed to `concordance_index(event, risk)`. True holdout C-index was ~0.587, not 0.413.
+2. **Within-season leakage** — `weeks_since_last_injury` computed from current-season events created a near-circular signal (ACWR=0.9993). Removed; replaced with cross-season `prior_season_out_weeks` + `injury_free_streak`.
+3. **Snap rolling contamination** — Injury-forced zeros (`offense_pct=0` during Out weeks) contaminated the chronic workload baseline. Fixed by computing rolling mean only over played weeks (`snap_share > 0`).
+4. **KNN imputer temporal leakage** — Imputer was fit on full 2010–2024 dataset before train/holdout split. Fixed: split holdout first, fit `KNNImputer` on pre-holdout training data only, transform holdout separately.
+5. **Defensive player blind spot** — DB/DL/LB players have `offense_pct ≈ 0`. Added `_compute_snap_share()` that uses `defense_snaps` (normalised by 95th-percentile per position-group × season) for defensive positions.
+6. **KNN imputation performance** — Running KNNImputer on 463k rows was infeasibly slow. Fixed by deduplicating to player-season level (~24k rows) before fitting, then merging back.
+
+### Output
+```python
+{
+  "season_injury_probability": 0.34,       # P(≥1 game missed this season) = 1 - S(17)
+  "survival_curve": [0.98, 0.96, ...],     # S(t) per week
+  "expected_games_played": 14.2,
+  "injury_risk_tier": "Moderate",          # Low / Moderate / High / Very High
+  "position_percentile": 62.1,             # vs same-position peers in training set
+  "primary_risk_factors": [...],           # top-3 features by |coef × value|
+}
+```
+
+### Files
+- `serving/models/health_analyzer/features.py` ✅ — `build_survival_frame()`, `_compute_snap_share()`, `fetch_health_features()`, `STATIC_FEATURE_COLS`, `TIME_VARYING_COLS`
+- `serving/models/health_analyzer/model.py` ✅ — `HealthAnalyzerModel`, `_impute()`, `_build_position_percentiles()`, save/load with `imputer.pkl` + `position_risk_distributions.pkl`
+- `serving/models/health_analyzer/train.py` ✅ — `_knn_fit()`, `_knn_apply()`, `_drop_low_variance()`, walk-forward CV, holdout evaluation, artifact save
+
+### Next improvements (if C-index plateaus below 0.65)
+- Random Survival Forest (`scikit-survival`) — captures non-linear ACWR × age interactions
+- Verify `defense_snaps` column exists in data lake `snap_counts` table at runtime
+
+---
+
+## Phase 7 — Remaining 2 Models 🔲
+
+| Model | Algorithm | Key Output |
+|-------|-----------|-----------|
+| Career Simulator | Cox PH (lifelines) | Projected games played + career arc percentiles |
+| Roster Fit | Cosine similarity + Ridge weights | Fit score (0–100) per prospect-team pair |
+
+---
+
+## Phase 8 — NullClaw 🔲
 
 NullClaw is the **primary interface**. The 7 models are its tools.
 
@@ -278,7 +359,7 @@ Response with SHAP-driven plain-English explanation + comparables
 
 ---
 
-## Phase 7 — FastAPI Serving 🔲
+## Phase 9 — FastAPI Serving 🔲
 
 - `POST /nullclaw/chat` — `{message, conversation_id}` — primary endpoint
 - `POST /predict/{model_name}` — direct model access for testing/programmatic use
@@ -286,7 +367,7 @@ Response with SHAP-driven plain-English explanation + comparables
 
 ---
 
-## Phase 8 — Validation + Case Studies 🔲
+## Phase 10 — Validation + Case Studies 🔲
 
 - Temporal holdout: must beat naive ADP baseline on seasons Y-2 and Y-1
 - SHAP feature importance audit per model
