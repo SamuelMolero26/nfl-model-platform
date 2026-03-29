@@ -25,8 +25,6 @@ Usage:
 import argparse
 import asyncio
 import logging
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from lifelines import CoxTimeVaryingFitter
@@ -151,7 +149,7 @@ def _c_index(cox: CoxTimeVaryingFitter, frame: pd.DataFrame, feat_cols: list[str
         )
         .reset_index()
     )
-    return concordance_index(per_ps["event"], per_ps["risk"])
+    return concordance_index(per_ps["duration"], -per_ps["risk"], per_ps["event"])
 
 
 def _naive_baseline_cindex(train_frame: pd.DataFrame, val_frame: pd.DataFrame) -> float:

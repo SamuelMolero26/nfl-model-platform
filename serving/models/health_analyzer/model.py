@@ -41,7 +41,7 @@ from sklearn.impute import KNNImputer
 from serving.models.base import BaseModel
 from .features import FEATURE_COLS, STATIC_FEATURE_COLS
 
-SEASON_WEEKS = 17  # standard NFL regular season
+SEASON_WEEKS = 18  # standard NFL regular season
 
 
 def _risk_tier(percentile: float) -> str:
@@ -178,12 +178,21 @@ class HealthAnalyzerModel(BaseModel):
 
         pred_frame = pd.DataFrame(rows)
 
-        # Predict log partial hazard per week
+        # Predict log partial hazard (relative risk multiplier, not a probability)
         log_hz = self._cox.predict_log_partial_hazard(pred_frame[self._feature_cols])
-        hz = np.exp(log_hz.values).clip(0, 1)
+        partial_hz = np.exp(log_hz.values)
 
-        # S(t) = Π_{i=1}^{t} (1 - h_i)  — product of conditional survival probs
-        survival_curve = list(np.cumprod(1 - hz))
+        
+        # Build survival curve via the Breslow baseline cumulative hazard.
+        # For a time-varying Cox model:
+        #   S(t) = exp(-Σ_{s=1}^{t} ΔH0(s) · exp(β'x(s)))
+        # where ΔH0(s) is the baseline hazard increment at week. 
+        bch_series = self._cox.baseline_cumulative_hazard_.iloc[:, 0]
+        stops = pred_frame["stop"].values
+        bch_aligned = bch_series.reindex(stops).bfill().ffill().fillna(0.0).values
+        delta_bch = np.diff(bch_aligned, prepend=0.0)
+        cum_hazard = np.cumsum(delta_bch * partial_hz)
+        survival_curve = list(np.exp(-cum_hazard))
 
         season_injury_prob = round(float(1 - survival_curve[-1]), 4)
         expected_games = round(float(np.sum(survival_curve)), 2)
@@ -225,9 +234,10 @@ class HealthAnalyzerModel(BaseModel):
             )
             .reset_index()
         )
+        
+        c_idx = concordance_index(per_ps["duration"], -per_ps["risk"], per_ps["event"])
 
-        c_idx = concordance_index(per_ps["event"], -per_ps["risk"])
-
+    
         return {
             "concordance_index": round(float(c_idx), 4),
             "event_rate": round(float(frame["event"].mean()), 4),

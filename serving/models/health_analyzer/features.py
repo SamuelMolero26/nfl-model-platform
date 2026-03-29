@@ -317,11 +317,12 @@ def build_survival_frame(
     snap_bridge["season"] = snap_bridge["season"].astype(int)
     snap_bridge["_name_lower"] = snap_bridge["player"].str.lower().str.strip()
 
-    inj_bridge = inj_orig[[inj_key, "full_name", "season"]].drop_duplicates()
+    inj_name_col = "full_name" if "full_name" in inj_orig.columns else "player_name"
+    inj_bridge = inj_orig[[inj_key, inj_name_col, "season"]].drop_duplicates()
     inj_bridge["season"] = pd.to_numeric(inj_bridge["season"], errors="coerce").dropna()
     inj_bridge = inj_bridge.dropna(subset=["season"])
     inj_bridge["season"] = inj_bridge["season"].astype(int)
-    inj_bridge["_name_lower"] = inj_bridge["full_name"].str.lower().str.strip()
+    inj_bridge["_name_lower"] = inj_bridge[inj_name_col].str.lower().str.strip()
     inj_bridge = inj_bridge.rename(columns={inj_key: "gsis_id"})
 
     id_bridge = snap_bridge.merge(
@@ -483,7 +484,7 @@ def build_survival_frame(
     universe = universe.drop(columns=["_played"])
 
     universe["career_games_played"] = (
-        (universe["seasons_played"] - 1) * 15 + universe["games_played_this_season"]
+        (universe["seasons_played"] - 1) * 17 + universe["games_played_this_season"]
     ).clip(lower=0)
 
     # ── Static: body composition from combine ─────────────────────────────────
