@@ -39,18 +39,14 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from serving.models.base import BaseModel
 from .features import EW_FEATURE_COLS, FEATURE_COLS
 
-# Core scoring logic (consolidated from legacy module).
-from .core import (
+# Re-use the battle-tested scoring logic from the legacy module.
+from serving.models.team_diagnosis.team_diagnostic_model.Team_diagnostic import (
     TeamDiagnosticModel as _CoreModel,
     _PASS_WEIGHT,
     _OFFENSE_WEIGHT,
 )
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
-
-
 def _safe_val(v):
     """Convert numpy scalars / pandas NA to JSON-safe Python types."""
     if v is None:
@@ -67,11 +63,7 @@ def _safe_val(v):
     return v
 
 
-# ---------------------------------------------------------------------------
 # Model
-# ---------------------------------------------------------------------------
-
-
 class TeamDiagnosisModel(BaseModel):
 
     MODEL_NAME = "team_diagnosis"
@@ -90,9 +82,7 @@ class TeamDiagnosisModel(BaseModel):
         self._train_features: Optional[pd.DataFrame] = None
         self._feature_cols: list[str] = []
 
-    # ------------------------------------------------------------------
     # BaseModel interface
-    # ------------------------------------------------------------------
 
     def train(self, X: pd.DataFrame, y: pd.Series) -> None:
         """
@@ -255,9 +245,7 @@ class TeamDiagnosisModel(BaseModel):
     def feature_names(self) -> list[str]:
         return self._feature_cols
 
-    # ------------------------------------------------------------------
     # SHAP helpers
-    # ------------------------------------------------------------------
 
     def _build_explainer(self, X: pd.DataFrame) -> Optional[shap.LinearExplainer]:
         """
@@ -323,9 +311,7 @@ class TeamDiagnosisModel(BaseModel):
         sv = self._explainer.shap_values(X_scaled)
         return pd.DataFrame(sv, index=X_ew.index, columns=ew_cols)
 
-    # ------------------------------------------------------------------
     # Save / Load
-    # ------------------------------------------------------------------
 
     def save(self, artifact_dir: Optional[Path] = None) -> Path:
         """

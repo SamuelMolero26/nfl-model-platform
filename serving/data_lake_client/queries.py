@@ -2,6 +2,13 @@ from typing import Optional
 import pandas as pd
 from .client import DataLakeClient
 
+_NGS_STAT_TYPES = {"passing", "receiving", "rushing"}
+
+
+def _safe_str(value: str) -> str:
+    """Escape single quotes in a string value before SQL interpolation."""
+    return value.replace("'", "''")
+
 
 async def get_combine_data(
     client: DataLakeClient,
@@ -65,7 +72,7 @@ async def get_player_career_stats(
     sql = f"""
         SELECT *
         FROM weekly_stats
-        WHERE player_display_name ILIKE '%{player_name}%'
+        WHERE player_display_name ILIKE '%{_safe_str(player_name)}%'
         ORDER BY season, week
     """
     return await client.query(sql)
@@ -80,7 +87,7 @@ async def get_injury_history(
     Columns: player_id, player_name, position, season, week, report_status,
              practice_status, primary_injury.
     """
-    where = f"WHERE position ILIKE '%{position}%'" if position else ""
+    where = f"WHERE position ILIKE '%{_safe_str(position)}%'" if position else ""
     sql = f"""
         SELECT *
         FROM injuries
@@ -100,7 +107,7 @@ async def get_snap_counts(
     """
     where_clauses = []
     if position:
-        where_clauses.append(f"position ILIKE '%{position}%'")
+        where_clauses.append(f"position ILIKE '%{_safe_str(position)}%'")
     if season:
         where_clauses.append(f"season = {season}")
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
@@ -123,7 +130,7 @@ async def get_depth_charts(
     """
     where_clauses = []
     if team:
-        where_clauses.append(f"club_code ILIKE '%{team}%'")
+        where_clauses.append(f"club_code ILIKE '%{_safe_str(team)}%'")
     if season:
         where_clauses.append(f"season = {season}")
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
@@ -145,7 +152,9 @@ async def get_ngs_stats(
     Next Gen Stats: passing (CPOE), receiving (target sep), rushing (RYOE).
     stat_type: 'passing' | 'receiving' | 'rushing'
     """
-    where = f"WHERE season = {season}" if season else ""
+    if stat_type not in _NGS_STAT_TYPES:
+        raise ValueError(f"stat_type must be one of {_NGS_STAT_TYPES}, got {stat_type!r}")
+    where = f"WHERE season = {int(season)}" if season else ""
     sql = f"""
         SELECT *
         FROM ngs_{stat_type}
@@ -165,7 +174,7 @@ async def get_college_stats(
     """
     where_clauses = []
     if player_name:
-        where_clauses.append(f"player_name ILIKE '%{player_name}%'")
+        where_clauses.append(f"player_name ILIKE '%{_safe_str(player_name)}%'")
     if year:
         where_clauses.append(f"year = {year}")
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
@@ -202,7 +211,7 @@ async def get_athletic_profiles(
 
     Use for: Player Projection, Positional Flexibility, Roster Fit features.
     """
-    where = f"WHERE player_id = '{player_id}'" if player_id else ""
+    where = f"WHERE player_id = '{_safe_str(player_id)}'" if player_id else ""
     sql = f"SELECT * FROM player_athletic_profiles {where}"
     return await client.query(sql)
 
@@ -225,7 +234,7 @@ async def get_production_profiles(
     """
     where_clauses = []
     if player_id:
-        where_clauses.append(f"player_id = '{player_id}'")
+        where_clauses.append(f"player_id = '{_safe_str(player_id)}'")
     if season:
         where_clauses.append(f"season = {season}")
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
@@ -249,7 +258,7 @@ async def get_durability_profiles(
 
     Use for: Health Analyzer, Career Simulator, Player Projection features.
     """
-    where = f"WHERE player_id = '{player_id}'" if player_id else ""
+    where = f"WHERE player_id = '{_safe_str(player_id)}'" if player_id else ""
     sql = f"SELECT * FROM player_durability_profiles {where}"
     return await client.query(sql)
 
