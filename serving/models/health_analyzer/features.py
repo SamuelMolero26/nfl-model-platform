@@ -317,11 +317,21 @@ def build_survival_frame(
     snap_bridge["season"] = snap_bridge["season"].astype(int)
     snap_bridge["_name_lower"] = snap_bridge["player"].str.lower().str.strip()
 
-    inj_bridge = inj_orig[[inj_key, "full_name", "season"]].drop_duplicates()
+    # Injuries table may use either `full_name` or `player_name` for the player name.
+    if "full_name" in inj_orig.columns:
+        inj_name_col = "full_name"
+    elif "player_name" in inj_orig.columns:
+        inj_name_col = "player_name"
+    else:
+        raise KeyError(
+            "Injury history DataFrame must contain either 'full_name' or 'player_name' column."
+        )
+
+    inj_bridge = inj_orig[[inj_key, inj_name_col, "season"]].drop_duplicates()
     inj_bridge["season"] = pd.to_numeric(inj_bridge["season"], errors="coerce").dropna()
     inj_bridge = inj_bridge.dropna(subset=["season"])
     inj_bridge["season"] = inj_bridge["season"].astype(int)
-    inj_bridge["_name_lower"] = inj_bridge["full_name"].str.lower().str.strip()
+    inj_bridge["_name_lower"] = inj_bridge[inj_name_col].str.lower().str.strip()
     inj_bridge = inj_bridge.rename(columns={inj_key: "gsis_id"})
 
     id_bridge = snap_bridge.merge(
