@@ -89,7 +89,6 @@ from serving.data_lake_client.queries import (                                # 
     get_athletic_profiles,
     get_draft_value_history,
 )
-import duckdb_client                                                          # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -98,32 +97,6 @@ logger = logging.getLogger(__name__)
 # SQL — calibration path (DuckDB, batch, local Parquet)
 # ---------------------------------------------------------------------------
 
-_BATCH_SQL = """
-SELECT
-    dvh.player_id,
-    dvh.player_name,
-    dvh.season,
-    dvh.team          AS draft_team,
-    dvh.position,
-    dvh.round,
-    dvh.pick,
-    dvh.age,
-    dvh.college,
-    dvh.car_av,
-    dvh.w_av,
-    dvh.draft_value_score,
-    dvh.draft_value_percentile,
-    ap.speed_score,
-    ap.agility_score,
-    ap.burst_score,
-    ap.strength_score,
-    ap.size_score
-FROM draft_value_history dvh
-LEFT JOIN player_athletic_profiles ap
-       ON dvh.player_id = ap.player_id
-WHERE dvh.season BETWEEN ? AND ?
-ORDER BY dvh.season ASC, dvh.pick ASC NULLS LAST
-"""
 
 
 # ---------------------------------------------------------------------------
@@ -424,27 +397,21 @@ async def fetch_prospect_scores(
 
 
 # ---------------------------------------------------------------------------
-# Public API — CALIBRATION (sync, DuckDB, local Parquet)
+# Public API — CALIBRATION (async, HTTP API)
 # ---------------------------------------------------------------------------
 
-def fetch_prospect_scores_batch(
+async def fetch_prospect_scores_batch(
     year_start: int,
     year_end: int,
 ) -> pd.DataFrame:
     """
-    Fetch historical prospect data for a range of draft years via DuckDB.
+    Fetch historical prospect data for a range of draft years via the data lake API.
 
     Used exclusively during optimizer calibration — building expected_av_curve,
     positional_quota_defaults, and need_score_thresholds from historical data.
     NOT called at inference time.
 
-    Why DuckDB here instead of the HTTP client?
-      - Calibration reads 20+ years of draft history in one scan.
-      - The HTTP API processes one query at a time and wasn't built for
-        bulk pipeline work.
-      - Calibration runs offline (pipeline step), not in response to a user
-        request, so async/await adds complexity with no benefit.
-
+    A single JOIN query is used to minimise round trips over Tailscale.
     Does NOT attach career_value_score or projection_source — calibration
     uses car_av / w_av as historical ground truth directly.
 
@@ -456,14 +423,41 @@ def fetch_prospect_scores_batch(
     -------
     pd.DataFrame  one row per drafted player across all years.
     """
+    sql = f"""
+        SELECT
+            dvh.player_id,
+            dvh.player_name,
+            dvh.season,
+            dvh.team          AS draft_team,
+            dvh.position,
+            dvh.round,
+            dvh.pick,
+            dvh.age,
+            dvh.college,
+            dvh.car_av,
+            dvh.w_av,
+            dvh.draft_value_score,
+            dvh.draft_value_percentile,
+            ap.speed_score,
+            ap.agility_score,
+            ap.burst_score,
+            ap.strength_score,
+            ap.size_score
+        FROM draft_value_history dvh
+        LEFT JOIN player_athletic_profiles ap
+               ON dvh.player_id = ap.player_id
+        WHERE dvh.season BETWEEN {int(year_start)} AND {int(year_end)}
+        ORDER BY dvh.season ASC, dvh.pick ASC NULLS LAST
+    """
     logger.info(
-        "Calibration batch fetch: draft years %s–%s via DuckDB.",
+        "Calibration batch fetch: draft years %s–%s via data lake API.",
         year_start, year_end,
     )
     try:
-        df = duckdb_client.execute(_BATCH_SQL, [year_start, year_end])
+        async with DataLakeClient() as client:
+            df = await client.query(sql)
     except Exception as exc:
-        logger.error("DuckDB calibration batch query failed: %s", exc)
+        logger.error("Calibration batch query failed: %s", exc)
         return pd.DataFrame()
 
     if df.empty:

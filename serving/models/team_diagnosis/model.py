@@ -63,7 +63,6 @@ def _safe_val(v):
     return v
 
 
-# Model
 class TeamDiagnosisModel(BaseModel):
 
     MODEL_NAME = "team_diagnosis"

@@ -21,8 +21,8 @@ Flags:
 
 WHAT THIS SCRIPT DOES
 ─────────────────────
-  1. Fetch all historical draft picks in the calibration window via DuckDB
-     (fetch_prospect_scores_batch — local Parquet, no HTTP).
+  1. Fetch all historical draft picks in the calibration window via the data
+     lake API (fetch_prospect_scores_batch — single JOIN query over Tailscale).
 
   2. Calibrate the DraftOptimizerModel:
        - expected_av_curve       (mean w_av by pick slot)
@@ -61,6 +61,7 @@ PLAN ALIGNMENT
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
 import sys
@@ -370,10 +371,10 @@ def main() -> None:
         logger.info("  Loaded %s rows from cache.", f"{len(cal_df):,}")
     else:
         logger.info(
-            "Fetching calibration batch %s–%s from DuckDB …",
+            "Fetching calibration batch %s–%s from data lake …",
             args.year_start, args.year_end,
         )
-        cal_df = fetch_prospect_scores_batch(args.year_start, args.year_end)
+        cal_df = asyncio.run(fetch_prospect_scores_batch(args.year_start, args.year_end))
         if cal_df.empty:
             logger.error(
                 "Calibration batch is empty. "
@@ -403,10 +404,10 @@ def main() -> None:
         holdout_df = pd.read_parquet(_HOLDOUT_CACHE)
     else:
         logger.info(
-            "Fetching holdout batch %s–%s from DuckDB …",
+            "Fetching holdout batch %s–%s from data lake …",
             args.holdout_start, args.holdout_end,
         )
-        holdout_df = fetch_prospect_scores_batch(args.holdout_start, args.holdout_end)
+        holdout_df = asyncio.run(fetch_prospect_scores_batch(args.holdout_start, args.holdout_end))
         if not holdout_df.empty:
             _HOLDOUT_CACHE.parent.mkdir(parents=True, exist_ok=True)
             holdout_df.to_parquet(_HOLDOUT_CACHE, index=False)

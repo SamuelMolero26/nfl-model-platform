@@ -142,10 +142,10 @@ async def fetch_feature_matrix(
     Used by train.py (include_target=True) and model.py at inference time.
     """
     where_clauses = []
-    if year_start:
-        where_clauses.append(f"season >= {year_start}")
-    if year_end:
-        where_clauses.append(f"season <= {year_end}")
+    if year_start is not None:
+        where_clauses.append(f"season >= {int(year_start)}")
+    if year_end is not None:
+        where_clauses.append(f"season <= {int(year_end)}")
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     sql = f"SELECT * FROM team_statistics {where} ORDER BY season, team"
@@ -168,10 +168,10 @@ async def fetch_contracts(
     Passed as contracts_df to score_teams() / predict() for cap-ROI columns.
     """
     where_clauses = []
-    if year_start:
-        where_clauses.append(f"season >= {year_start}")
-    if year_end:
-        where_clauses.append(f"season <= {year_end}")
+    if year_start is not None:
+        where_clauses.append(f"season >= {int(year_start)}")
+    if year_end is not None:
+        where_clauses.append(f"season <= {int(year_end)}")
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     sql = f"SELECT season, team, position, cap_hit FROM contracts {where}"
