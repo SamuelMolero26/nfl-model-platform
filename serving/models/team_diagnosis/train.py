@@ -198,6 +198,10 @@ def train(
             "baseline_rmse": baseline_rmse,
             "beat_baseline": beat_baseline,
             "ew_features": ew_cols_used,
+            "ew_source_cols": (
+                list(wrapper._core._ew_feature_map.values())
+                if wrapper._core is not None else []
+            ),
             "all_feature_cols": feat_cols,
             "feature_names": ew_cols_used,  # what BaseModel exposes
             "ridge_alpha": (
@@ -210,6 +214,14 @@ def train(
 
     artifact_path = wrapper.save()
     log.info("Artifact saved → %s", artifact_path)
+
+    # Persist holdout features so the notebook can analyse train vs holdout
+    # distributions and era-gap drift.  Written after save() so the features/
+    # directory already exists.
+    holdout_persist = holdout_full[feat_cols + ["wins"]].copy()
+    holdout_parquet = artifact_path / "features" / "holdout_features.parquet"
+    holdout_persist.to_parquet(holdout_parquet)
+    log.info("Holdout features saved → %s", holdout_parquet)
 
     return wrapper
 

@@ -431,6 +431,7 @@ class TeamDiagnosticModel:
         self._expected_wins_model: Optional[RidgeCV] = None
         self._ew_scaler: Optional[StandardScaler] = None
         self._ew_features: list[str] = []
+        self._ew_feature_map: dict = {}   # feat_name → src_col, stored for SHAP reconstruction
         self._is_fitted = False
 
     # ─────────────────────────────────────────────────────────────────────
@@ -458,15 +459,20 @@ class TeamDiagnosticModel:
         """
         df = team_stats_df.copy()
         df = self._validate_and_coerce(df)
+        df = self._engineer_ew_features(df)
 
         # Build regression feature matrix.
         # Defense EPA is sign-flipped: positive value = good outcome for model
         ew_feature_map = {
-            "ew_off_pass_epa": "offense_total_epa_pass",
-            "ew_off_run_epa": "offense_total_epa_run",
-            "ew_def_pass_epa": "defense_total_epa_pass",  # will be negated
-            "ew_def_run_epa": "defense_total_epa_run",  # will be negated
+            "ew_off_pass_epa":     "offense_total_epa_pass",
+            "ew_off_run_epa":      "offense_total_epa_run",
+            "ew_def_pass_epa":     "defense_total_epa_pass",   # will be negated
+            "ew_def_run_epa":      "defense_total_epa_run",    # will be negated
+            "ew_def_pass_epa_ave": "defense_ave_epa_pass",     # will be negated
+            "ew_turnover_margin":  "ew_turnover_margin",
         }
+
+        self._ew_feature_map = ew_feature_map
 
         available_feats = {}
         for feat_name, src_col in ew_feature_map.items():
@@ -771,6 +777,39 @@ class TeamDiagnosticModel:
         for c in numeric_cols:
             if df[c].dtype == object:
                 df[c] = pd.to_numeric(df[c], errors="coerce")
+        for c in ("defense_success_rate_pass", "defense_ave_epa_pass"):
+            if c in df.columns:
+                df[c] = df[c].astype(float)
+        return df
+
+    def _engineer_ew_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute derived EW features and return the augmented DataFrame."""
+        to_cols = [
+            "defense_n_interceptions",
+            "defense_n_fumbles_lost_pass",
+            "defense_n_fumbles_lost_run",
+            "offense_n_interceptions",
+            "offense_n_fumbles_lost_pass",
+            "offense_n_fumbles_lost_run",
+        ]
+        if all(c in df.columns for c in to_cols):
+            df["ew_turnover_margin"] = (
+                df["defense_n_interceptions"]
+                + df["defense_n_fumbles_lost_pass"]
+                + df["defense_n_fumbles_lost_run"]
+                - df["offense_n_interceptions"]
+                - df["offense_n_fumbles_lost_pass"]
+                - df["offense_n_fumbles_lost_run"]
+            )
+        else:
+            df["ew_turnover_margin"] = np.nan
+
+        if "offense_success_rate_pass" in df.columns and "defense_success_rate_pass" in df.columns:
+            denom = df["defense_success_rate_pass"].replace(0, np.nan)
+            df["ew_success_rate_ratio"] = df["offense_success_rate_pass"] / denom
+        else:
+            df["ew_success_rate_ratio"] = np.nan
+
         return df
 
     def _append_expected_wins(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -781,11 +820,15 @@ class TeamDiagnosticModel:
             df["win_delta"] = np.nan
             return df
 
+        df = self._engineer_ew_features(df)
+
         feat_map = {
-            "ew_off_pass_epa": "offense_total_epa_pass",
-            "ew_off_run_epa": "offense_total_epa_run",
-            "ew_def_pass_epa": "defense_total_epa_pass",
-            "ew_def_run_epa": "defense_total_epa_run",
+            "ew_off_pass_epa":     "offense_total_epa_pass",
+            "ew_off_run_epa":      "offense_total_epa_run",
+            "ew_def_pass_epa":     "defense_total_epa_pass",
+            "ew_def_run_epa":      "defense_total_epa_run",
+            "ew_def_pass_epa_ave": "defense_ave_epa_pass",
+            "ew_turnover_margin":  "ew_turnover_margin",
         }
         available = {}
         for feat_name, src_col in feat_map.items():

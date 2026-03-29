@@ -63,7 +63,6 @@ def _safe_val(v):
     return v
 
 
-# Model
 class TeamDiagnosisModel(BaseModel):
 
     MODEL_NAME = "team_diagnosis"
@@ -116,7 +115,9 @@ class TeamDiagnosisModel(BaseModel):
         # Build SHAP LinearExplainer over the EW feature space
         self._explainer = self._build_explainer(X)
 
-        self._feature_cols = [c for c in EW_FEATURE_COLS if c in X.columns]
+        self._feature_cols = list(self._core._ew_features) if self._core._is_fitted else [
+            c for c in EW_FEATURE_COLS if c in X.columns
+        ]
         self._is_trained = True
 
     def predict(self, inputs: dict) -> dict:
@@ -247,6 +248,28 @@ class TeamDiagnosisModel(BaseModel):
 
     # SHAP helpers
 
+    def _reconstruct_ew_matrix(self, X: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """
+        Reconstruct the EW feature DataFrame that the scaler/model was fit on.
+
+        Applies _engineer_ew_features to add derived columns, then renames and
+        sign-flips source columns via _ew_feature_map, returning a DataFrame
+        with columns ordered to match self._core._ew_features.
+        """
+        ew_features = self._core._ew_features
+        feat_map = self._core._ew_feature_map
+        if not ew_features or not feat_map:
+            return None
+        df = self._core._engineer_ew_features(X.copy())
+        available = {}
+        for feat_name, src_col in feat_map.items():
+            if feat_name in ew_features and src_col in df.columns:
+                available[feat_name] = -df[src_col] if "def_" in feat_name else df[src_col]
+        if not available:
+            return None
+        feat_df = pd.DataFrame(available, index=df.index)[ew_features]
+        return feat_df.dropna()
+
     def _build_explainer(self, X: pd.DataFrame) -> Optional[shap.LinearExplainer]:
         """
         Build a SHAP LinearExplainer from the fitted RidgeCV + training data.
@@ -256,11 +279,11 @@ class TeamDiagnosisModel(BaseModel):
         """
         if not self._core._is_fitted:
             return None
-        ew_cols = [c for c in EW_FEATURE_COLS if c in X.columns]
-        if not ew_cols or self._core._ew_scaler is None:
+        ew_features = self._core._ew_features
+        if not ew_features or self._core._ew_scaler is None:
             return None
-        X_ew = X[ew_cols].dropna()
-        if X_ew.empty:
+        X_ew = self._reconstruct_ew_matrix(X)
+        if X_ew is None or X_ew.empty:
             return None
         X_scaled = self._core._ew_scaler.transform(X_ew.values)
         return shap.LinearExplainer(
@@ -279,16 +302,27 @@ class TeamDiagnosisModel(BaseModel):
         if self._explainer is None or self._core._ew_scaler is None:
             return None
 
-        ew_vals = [_safe_val(row.get(c)) for c in EW_FEATURE_COLS]
-        if any(v is None for v in ew_vals):
-            return None
+        # Reconstruct the model's feature values from the row's source columns
+        # using the same rename + sign-flip logic as _reconstruct_ew_matrix.
+        ew_features = self._core._ew_features
+        feat_map = self._core._ew_feature_map
+        ew_vals = []
+        for feat_name in ew_features:
+            src_col = feat_map.get(feat_name)
+            if src_col is None:
+                return None
+            val = _safe_val(row.get(src_col))
+            if val is None:
+                return None
+            ew_vals.append(-val if "def_" in feat_name else val)
 
         X_ew = np.array([ew_vals])
         X_scaled = self._core._ew_scaler.transform(X_ew)
         sv = self._explainer.shap_values(X_scaled)
 
         shap_dict = {
-            col: round(float(val), 4) for col, val in zip(EW_FEATURE_COLS, sv[0])
+            col: round(float(val), 4)
+            for col, val in zip(ew_features, sv[0])
         }
         return dict(sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True))
 
@@ -301,15 +335,12 @@ class TeamDiagnosisModel(BaseModel):
         """
         if self._explainer is None or self._train_features is None:
             return None
-        ew_cols = [c for c in EW_FEATURE_COLS if c in self._train_features.columns]
-        if not ew_cols:
-            return None
-        X_ew = self._train_features[ew_cols].dropna()
-        if X_ew.empty:
+        X_ew = self._reconstruct_ew_matrix(self._train_features)
+        if X_ew is None or X_ew.empty:
             return None
         X_scaled = self._core._ew_scaler.transform(X_ew.values)
         sv = self._explainer.shap_values(X_scaled)
-        return pd.DataFrame(sv, index=X_ew.index, columns=ew_cols)
+        return pd.DataFrame(sv, index=X_ew.index, columns=X_ew.columns.tolist())
 
     # Save / Load
 
