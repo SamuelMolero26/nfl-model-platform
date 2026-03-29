@@ -39,8 +39,8 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from serving.models.base import BaseModel
 from .features import EW_FEATURE_COLS, FEATURE_COLS
 
-# Re-use the battle-tested scoring logic from the legacy module.
-from models.team_diagnostic_model.Team_diagnostic import (
+# Core scoring logic (consolidated from legacy module).
+from .core import (
     TeamDiagnosticModel as _CoreModel,
     _PASS_WEIGHT,
     _OFFENSE_WEIGHT,
