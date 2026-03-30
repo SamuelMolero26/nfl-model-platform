@@ -1,0 +1,117 @@
+name: CI / Build / Deploy
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+jobs:
+  # ── 1. CI ────────────────────────────────────────────────────────────────
+  ci:
+    name: Syntax & dependency check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check syntax (all API modules)
+        run: |
+          python -m py_compile serving/api/main.py
+          python -m py_compile serving/api/dependencies.py
+          python -m py_compile serving/api/errors.py
+          python -m py_compile serving/api/cache/client.py
+          python -m py_compile serving/api/cache/keys.py
+          python -m py_compile serving/api/routers/health.py
+          python -m py_compile serving/api/routers/models/_common.py
+          python -m py_compile serving/api/routers/models/player_projection.py
+          python -m py_compile serving/api/routers/models/positional_flexibility.py
+          python -m py_compile serving/api/routers/models/team_diagnosis.py
+          python -m py_compile serving/api/routers/models/draft_optimizer.py
+          python -m py_compile serving/api/routers/models/career_simulator.py
+          python -m py_compile serving/api/routers/models/roster_fit.py
+          python -m py_compile serving/api/routers/models/health_analyzer.py
+
+      - name: Verify app imports cleanly
+        run: python -c "from serving.api.main import app; print('ok')"
+
+  # ── 2. Build & push Docker image ─────────────────────────────────────────
+  build:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set lowercase image name (owner/repo only)
+        run: echo "IMAGE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE }}:latest
+            ghcr.io/${{ env.IMAGE }}:${{ github.sha }}
+
+  # ── 3. Deploy to VPS ─────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/nfl-model-platform
+            git fetch origin main
+            git reset --hard origin/main
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" --password-stdin
+            export IMAGE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+            export TAG=${{ github.sha }}
+            docker compose pull api
+            docker compose up -d --force-recreate
+            docker system prune -f
+            echo "==> Waiting for API to be healthy..."
+            for i in $(seq 1 30); do
+              if docker compose exec -T api python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read(); print('ok')" 2>/dev/null; then
+                echo "API is up after $((i * 5))s"
+                break
+              fi
+              sleep 5
+            done
+            echo "Deploy complete at $(date)"
