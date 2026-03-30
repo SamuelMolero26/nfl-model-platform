@@ -128,6 +128,7 @@ FEATURE_COLS = (
     + [f"pos_{g}" for g in POSITION_GROUP_ORDER]
     + [f"missing_{c}" for c in DRILL_COLS]
     + ["round_x_draft_value"]
+    + ["spec_x_burst", "spec_x_agility", "spec_x_speed"]
 )
 
 
@@ -271,6 +272,19 @@ def build_features(
         "draft_round", pd.Series(np.nan, index=base.index)
     ) * base.get("draft_value_score", pd.Series(np.nan, index=base.index))
 
+    # Interactions: SPEC position × athletic scores
+    # Special teamers' career value is driven almost entirely by athleticism
+    spec = base["pos_SPEC"]
+    base["spec_x_burst"] = spec * base.get(
+        "burst_score", pd.Series(np.nan, index=base.index)
+    )
+    base["spec_x_agility"] = spec * base.get(
+        "agility_score", pd.Series(np.nan, index=base.index)
+    )
+    base["spec_x_speed"] = spec * base.get(
+        "speed_score", pd.Series(np.nan, index=base.index)
+    )
+
     available_features = [c for c in FEATURE_COLS if c in base.columns]
     result = base[available_features].copy()
 
@@ -318,8 +332,7 @@ async def fetch_feature_matrix(
     log.info("Fetching draft picks …")
     draft_df = await get_draft_picks(client, year_start=year_start, year_end=year_end)
     log.info(f"  draft_picks: {len(draft_df)} rows")
-    # Note: draft_picks already contains draft_value_score + draft_value_percentile
-
+    
     log.info("Fetching athletic profiles …")
     athletic_df = await get_athletic_profiles(client)
     log.info(f"  athletic_profiles: {len(athletic_df)} rows")
