@@ -18,6 +18,13 @@ async def key_error_handler(request: Request, exc: KeyError):
     return JSONResponse(status_code=404, content=_body("not_found", str(exc)))
 
 
+async def connection_error_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=503,
+        content=_body("service_unavailable", str(exc)),
+    )
+
+
 async def generic_error_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
