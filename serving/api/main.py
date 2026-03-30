@@ -7,8 +7,16 @@ from fastapi import FastAPI
 
 from serving.api.cache.client import create_redis_pool
 from serving.api.errors import (
+    connection_error_handler,
     generic_error_handler,
     key_error_handler,
+    not_found_handler,
+    query_error_handler,
+)
+from serving.data_lake_client import (
+    DataLakeConnectionError,
+    DataLakeNotFoundError,
+    DataLakeQueryError,
 )
 from serving.api.routers import health
 from serving.api.routers.models import (
@@ -52,6 +60,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_exception_handler(DataLakeNotFoundError, not_found_handler)
+    app.add_exception_handler(DataLakeConnectionError, connection_error_handler)
+    app.add_exception_handler(DataLakeQueryError, query_error_handler)
     app.add_exception_handler(KeyError, key_error_handler)
     app.add_exception_handler(Exception, generic_error_handler)
 
