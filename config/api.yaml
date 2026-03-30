@@ -1,0 +1,16 @@
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 2
+  log_level: "info"
+
+redis:
+  pool_size: 10
+
+cache:
+  prediction_ttl: 300   # 5 min — CPU savings on repeated identical calls
+  data_lake_ttl: 300    # 5 min — load reduction on repeated data lookups
+  job_ttl: 86400        # 24 hr — async job results must survive polling
+
+jobs:
+  max_solve_time_seconds: 30
