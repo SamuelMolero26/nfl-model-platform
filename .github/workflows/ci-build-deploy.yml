@@ -97,9 +97,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            sudo mkdir -p /opt/nfl-model-platform
-            sudo chown "$USER":"$USER" /opt/nfl-model-platform
-            cd /opt/nfl-model-platform
+            APP_DIR="$HOME/nfl-model-platform"
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
             if [ ! -d .git ]; then
               git init
               git remote add origin https://github.com/${{ github.repository }}.git
