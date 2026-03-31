@@ -97,7 +97,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            mkdir -p /opt/nfl-model-platform
+            sudo mkdir -p /opt/nfl-model-platform
+            sudo chown "$USER":"$USER" /opt/nfl-model-platform
             cd /opt/nfl-model-platform
             if [ ! -d .git ]; then
               git init
