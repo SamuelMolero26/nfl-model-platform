@@ -97,8 +97,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            APP_DIR="$HOME/nfl-model-platform"
-            mkdir -p "$APP_DIR"
+            APP_DIR="/opt/nfl-model-platform"
+
+            # Ensure /opt dir exists and is owned by deploy user
+            sudo mkdir -p "$APP_DIR"
+            sudo chown "$USER:$USER" "$APP_DIR"
+
             cd "$APP_DIR"
             if [ ! -d .git ]; then
               git init
@@ -106,12 +110,21 @@ jobs:
             fi
             git fetch origin main
             git checkout -B main origin/main
+
+            # Pull latest image immediately
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" --password-stdin
             export IMAGE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
             export TAG=${{ github.sha }}
             docker compose pull api
-            docker compose up -d --force-recreate
+
+            # Bring everything up (redis if not running, api force-recreated)
+            docker compose up -d --force-recreate --remove-orphans
+
+            # Expose via Tailscale serve at /models path
+            tailscale serve --bg https /models/ http://localhost:8080/ || true
+
             docker system prune -f
+
             echo "==> Waiting for API to be healthy..."
             for i in $(seq 1 30); do
               if docker compose exec -T api python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read(); print('ok')" 2>/dev/null; then
