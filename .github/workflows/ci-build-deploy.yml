@@ -97,9 +97,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
+            mkdir -p /opt/nfl-model-platform
             cd /opt/nfl-model-platform
+            if [ ! -d .git ]; then
+              git init
+              git remote add origin https://github.com/${{ github.repository }}.git
+            fi
             git fetch origin main
-            git reset --hard origin/main
+            git checkout -B main origin/main
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" --password-stdin
             export IMAGE=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
             export TAG=${{ github.sha }}
