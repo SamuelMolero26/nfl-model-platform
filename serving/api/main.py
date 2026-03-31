@@ -51,19 +51,20 @@ def create_app() -> FastAPI:
         title="NFL Model Platform API",
         version="1.0.0",
         lifespan=lifespan,
+        root_path=os.environ.get("ROOT_PATH", ""),
     )
 
     app.add_exception_handler(KeyError, key_error_handler)
     app.add_exception_handler(Exception, generic_error_handler)
 
     app.include_router(health.router)
-    app.include_router(player_projection.router, prefix="/models")
-    app.include_router(positional_flexibility.router, prefix="/models")
-    app.include_router(team_diagnosis.router, prefix="/models")
-    app.include_router(draft_optimizer.router, prefix="/models")
-    app.include_router(career_simulator.router, prefix="/models")
-    app.include_router(roster_fit.router, prefix="/models")
-    app.include_router(health_analyzer.router, prefix="/models")
+    app.include_router(player_projection.router)
+    app.include_router(positional_flexibility.router)
+    app.include_router(team_diagnosis.router)
+    app.include_router(draft_optimizer.router)
+    app.include_router(career_simulator.router)
+    app.include_router(roster_fit.router)
+    app.include_router(health_analyzer.router)
 
     return app
 

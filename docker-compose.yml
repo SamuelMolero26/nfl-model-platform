@@ -17,6 +17,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - API_CONFIG_PATH=/app/config/api.yaml
+      - ROOT_PATH=/models
     volumes:
       - ./artifacts:/app/artifacts:ro
       - ./config:/app/config:ro
