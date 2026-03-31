@@ -59,6 +59,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+
 # ---------------------------------------------------------------------------
 # Path bootstrap — CWD-first since python -m is run from the project root.
 # Falls back to walking upward from __file__ looking for known root markers.
@@ -72,6 +73,7 @@ def _find_project_root() -> Path:
             return parent
     return cwd  # last resort — let the import error surface naturally
 
+
 _ROOT = _find_project_root()
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
@@ -79,13 +81,16 @@ if str(_ROOT) not in sys.path:
 # ---------------------------------------------------------------------------
 # Imports — shared position module (single source of truth)
 # ---------------------------------------------------------------------------
-from serving.models.shared.positions import pos_group, POSITION_GROUP_ORDER  # noqa: E402
+from serving.models.shared.positions import (
+    pos_group,
+    POSITION_GROUP_ORDER,
+)  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Imports — transport layers
 # ---------------------------------------------------------------------------
-from serving.data_lake_client import DataLakeClient                           # noqa: E402
-from serving.data_lake_client.queries import (                                # noqa: E402
+from serving.data_lake_client import DataLakeClient  # noqa: E402
+from serving.data_lake_client.queries import (  # noqa: E402
     get_athletic_profiles,
     get_draft_value_history,
 )
@@ -98,10 +103,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-
 # ---------------------------------------------------------------------------
 # Projection model helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_player_projection_model():
     """
@@ -110,6 +115,7 @@ def _load_player_projection_model():
     """
     try:
         from serving.models.registry import ModelRegistry  # noqa: PLC0415
+
         model = ModelRegistry().get("player_projection")
         if model is None:
             logger.warning(
@@ -120,7 +126,8 @@ def _load_player_projection_model():
     except Exception as exc:
         logger.warning(
             "Could not load Player Projection model (%s) — "
-            "career_value_score falls back to draft_value_percentile.", exc,
+            "career_value_score falls back to draft_value_percentile.",
+            exc,
         )
         return None
 
@@ -174,7 +181,8 @@ def _apply_projection_scores(df: pd.DataFrame, model) -> pd.DataFrame:
     if fallback_count:
         logger.warning(
             "%s / %s prospects used percentile fallback.",
-            f"{fallback_count:,}", f"{len(df):,}",
+            f"{fallback_count:,}",
+            f"{len(df):,}",
         )
 
     df = df.copy()
@@ -236,9 +244,16 @@ def _coerce_types(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
     float_cols = [
-        "career_value_score", "draft_value_percentile", "draft_value_score",
-        "car_av", "w_av",
-        "speed_score", "agility_score", "burst_score", "strength_score", "size_score",
+        "career_value_score",
+        "draft_value_percentile",
+        "draft_value_score",
+        "car_av",
+        "w_av",
+        "speed_score",
+        "agility_score",
+        "burst_score",
+        "strength_score",
+        "size_score",
     ]
     for col in float_cols:
         if col in df.columns:
@@ -265,19 +280,22 @@ def _merge_athletic(dvh: pd.DataFrame, athletic: pd.DataFrame) -> pd.DataFrame:
 
     athletic_cols = [
         "player_id",
-        "speed_score", "agility_score", "burst_score",
-        "strength_score", "size_score",
+        "speed_score",
+        "agility_score",
+        "burst_score",
+        "strength_score",
+        "size_score",
     ]
-    slim = (
-        athletic[[c for c in athletic_cols if c in athletic.columns]]
-        .drop_duplicates(subset=["player_id"], keep="first")
-    )
+    slim = athletic[
+        [c for c in athletic_cols if c in athletic.columns]
+    ].drop_duplicates(subset=["player_id"], keep="first")
     return dvh.merge(slim, on="player_id", how="left")
 
 
 # ---------------------------------------------------------------------------
 # Public API — INFERENCE (async, DataLakeClient)
 # ---------------------------------------------------------------------------
+
 
 async def fetch_prospect_scores(
     client: DataLakeClient,
@@ -314,7 +332,9 @@ async def fetch_prospect_scores(
     """
     logger.info(
         "Fetching prospect scores for %s (picks %s–%s) via DataLakeClient.",
-        draft_year, min_pick, max_pick,
+        draft_year,
+        min_pick,
+        max_pick,
     )
 
     # -- Fetch draft_value_history for the target year ----------------------
@@ -357,7 +377,9 @@ async def fetch_prospect_scores(
     if df.empty:
         logger.warning(
             "No prospects remain after pick filter %s–%s for year %s.",
-            min_pick, max_pick, draft_year,
+            min_pick,
+            max_pick,
+            draft_year,
         )
         return _empty_schema()
 
@@ -371,7 +393,8 @@ async def fetch_prospect_scores(
         if df.empty:
             logger.warning(
                 "No prospects remain after position filter %s for year %s.",
-                positions, draft_year,
+                positions,
+                draft_year,
             )
             return _empty_schema()
 
@@ -391,7 +414,11 @@ async def fetch_prospect_scores(
         "%s with speed_score.",
         f"{len(df):,}",
         f"{(df.get('projection_source', pd.Series()) == 'model').sum():,}",
-        f"{df['speed_score'].notna().sum():,}" if "speed_score" in df.columns else "n/a",
+        (
+            f"{df['speed_score'].notna().sum():,}"
+            if "speed_score" in df.columns
+            else "n/a"
+        ),
     )
     return df
 
@@ -399,6 +426,7 @@ async def fetch_prospect_scores(
 # ---------------------------------------------------------------------------
 # Public API — CALIBRATION (async, HTTP API)
 # ---------------------------------------------------------------------------
+
 
 async def fetch_prospect_scores_batch(
     year_start: int,
@@ -451,7 +479,8 @@ async def fetch_prospect_scores_batch(
     """
     logger.info(
         "Calibration batch fetch: draft years %s–%s via data lake API.",
-        year_start, year_end,
+        year_start,
+        year_end,
     )
     try:
         async with DataLakeClient() as client:
@@ -464,7 +493,8 @@ async def fetch_prospect_scores_batch(
         logger.warning(
             "No historical draft data found for %s–%s. "
             "Run ingestion pipeline Stage 3 first.",
-            year_start, year_end,
+            year_start,
+            year_end,
         )
         return pd.DataFrame()
 

@@ -126,14 +126,13 @@ _MIN_VECTOR_DIMS = 2
 
 # ── Private module-level helpers ──────────────────────────────────────────────
 
+
 def _get_pairs(pos_group: str) -> list[tuple[str, str]]:
     """Return dimension pairs for a position group, with fallback."""
     return DIMENSION_PAIRS.get(pos_group, DEFAULT_PAIRS)
 
 
-def _minmax_scale_within(
-    series: pd.Series, group: pd.Series
-) -> pd.Series:
+def _minmax_scale_within(series: pd.Series, group: pd.Series) -> pd.Series:
     """
     Min-max scale *series* within each unique value of *group*, mapping to [0, 100].
     Groups with zero range (all values identical) are set to 50.0.
@@ -153,34 +152,38 @@ def _minmax_scale_within(
 def _readable_dim_name(player_dim: str, scheme_dim: str) -> str:
     """Return a short human-readable label for a dimension pair."""
     labels = {
-        ("speed_score",          "air_yards_scheme"):    "Speed vs. vertical scheme",
-        ("speed_score",          "def_pass_scheme"):     "Speed vs. pass-D emphasis",
-        ("speed_score",          "run_epa_efficiency"):  "Speed vs. run quality",
-        ("speed_score",          "pass_rate"):           "Speed vs. pass volume",
-        ("agility_score",        "yac_scheme"):          "Agility vs. YAC scheme",
-        ("agility_score",        "def_pass_scheme"):     "Agility vs. coverage scheme",
-        ("agility_score",        "pass_epa_efficiency"): "Agility vs. pass-pro scheme",
-        ("burst_score",          "air_yards_scheme"):    "Burst vs. deep routes",
-        ("burst_score",          "def_pass_scheme"):     "Burst vs. pass-rush scheme",
-        ("burst_score",          "run_epa_efficiency"):  "Burst vs. run quality",
-        ("strength_score",       "run_success_rate"):    "Strength vs. consistent run game",
-        ("strength_score",       "def_run_scheme"):      "Strength vs. run-D emphasis",
-        ("strength_score",       "run_epa_efficiency"):  "Strength vs. run efficiency",
-        ("size_score",           "pass_success_rate"):   "Size vs. consistent passing",
-        ("size_score",           "run_success_rate"):    "Size vs. power run game",
-        ("size_score",           "def_run_scheme"):      "Size vs. run-D emphasis",
-        ("size_score",           "run_epa_efficiency"):  "Size vs. run quality",
-        ("nfl_production_score", "pass_rate"):           "Production vs. pass volume",
-        ("nfl_production_score", "pass_epa_efficiency"): "Production vs. scheme quality",
-        ("target_share",         "pass_rate"):           "Target share vs. pass volume",
-        ("snap_share",           "pass_rate"):           "Snap usage vs. pass emphasis",
-        ("epa_per_game",         "pass_epa_efficiency"): "EPA quality vs. scheme quality",
-        ("passing_cpoe",         "air_yards_scheme"):    "Accuracy vs. depth demands",
+        ("speed_score", "air_yards_scheme"): "Speed vs. vertical scheme",
+        ("speed_score", "def_pass_scheme"): "Speed vs. pass-D emphasis",
+        ("speed_score", "run_epa_efficiency"): "Speed vs. run quality",
+        ("speed_score", "pass_rate"): "Speed vs. pass volume",
+        ("agility_score", "yac_scheme"): "Agility vs. YAC scheme",
+        ("agility_score", "def_pass_scheme"): "Agility vs. coverage scheme",
+        ("agility_score", "pass_epa_efficiency"): "Agility vs. pass-pro scheme",
+        ("burst_score", "air_yards_scheme"): "Burst vs. deep routes",
+        ("burst_score", "def_pass_scheme"): "Burst vs. pass-rush scheme",
+        ("burst_score", "run_epa_efficiency"): "Burst vs. run quality",
+        ("strength_score", "run_success_rate"): "Strength vs. consistent run game",
+        ("strength_score", "def_run_scheme"): "Strength vs. run-D emphasis",
+        ("strength_score", "run_epa_efficiency"): "Strength vs. run efficiency",
+        ("size_score", "pass_success_rate"): "Size vs. consistent passing",
+        ("size_score", "run_success_rate"): "Size vs. power run game",
+        ("size_score", "def_run_scheme"): "Size vs. run-D emphasis",
+        ("size_score", "run_epa_efficiency"): "Size vs. run quality",
+        ("nfl_production_score", "pass_rate"): "Production vs. pass volume",
+        (
+            "nfl_production_score",
+            "pass_epa_efficiency",
+        ): "Production vs. scheme quality",
+        ("target_share", "pass_rate"): "Target share vs. pass volume",
+        ("snap_share", "pass_rate"): "Snap usage vs. pass emphasis",
+        ("epa_per_game", "pass_epa_efficiency"): "EPA quality vs. scheme quality",
+        ("passing_cpoe", "air_yards_scheme"): "Accuracy vs. depth demands",
     }
     return labels.get((player_dim, scheme_dim), f"{player_dim} × {scheme_dim}")
 
 
 # ── RosterFitModel ────────────────────────────────────────────────────────────
+
 
 class RosterFitModel(BaseModel):
     """
@@ -204,8 +207,8 @@ class RosterFitModel(BaseModel):
         super().__init__()
         self.ridge_alphas = ridge_alphas
 
-        self._ridge:    Optional[RidgeCV]       = None
-        self._scaler:   Optional[StandardScaler] = None
+        self._ridge: Optional[RidgeCV] = None
+        self._scaler: Optional[StandardScaler] = None
         self._dim_pairs_used: list[tuple[str, str]] = []
         self._is_fitted: bool = False
 
@@ -254,21 +257,27 @@ class RosterFitModel(BaseModel):
         dict with keys: prediction (list of records), shap_values (None), metadata.
         """
         player_profiles = inputs["player_profiles"]
-        team_profiles   = inputs["team_profiles"]
-        season          = inputs["season"]
+        team_profiles = inputs["team_profiles"]
+        season = inputs["season"]
         position_filter = inputs.get("position_filter")
-        team_filter     = inputs.get("team_filter")
-        use_ridge       = inputs.get("use_ridge", False)
+        team_filter = inputs.get("team_filter")
+        use_ridge = inputs.get("use_ridge", False)
 
         if use_ridge and self._is_fitted:
             result = self.score(
-                player_profiles, team_profiles, season,
-                position_filter, team_filter,
+                player_profiles,
+                team_profiles,
+                season,
+                position_filter,
+                team_filter,
             )
         else:
             result = self.score_cosine_only(
-                player_profiles, team_profiles, season,
-                position_filter, team_filter,
+                player_profiles,
+                team_profiles,
+                season,
+                position_filter,
+                team_filter,
             )
 
         return {
@@ -350,19 +359,19 @@ class RosterFitModel(BaseModel):
         >>> results.sort_values("fit_score", ascending=False).head(5)
         """
         players_s = self._filter_players(player_profiles, season, position_filter)
-        teams_s   = self._filter_teams(team_profiles, season, team_filter)
+        teams_s = self._filter_teams(team_profiles, season, team_filter)
 
         if players_s.empty or teams_s.empty:
             logger.warning(
                 "score_cosine_only: no data after filtering "
                 "(season=%s, position=%s, team=%s).",
-                season, position_filter, team_filter,
+                season,
+                position_filter,
+                team_filter,
             )
             return pd.DataFrame()
 
-        records = self._score_all_pairs(
-            players_s, teams_s, use_ridge=False
-        )
+        records = self._score_all_pairs(players_s, teams_s, use_ridge=False)
         result = pd.DataFrame(records)
 
         if result.empty:
@@ -378,7 +387,10 @@ class RosterFitModel(BaseModel):
         logger.info(
             "score_cosine_only → %s (player, team) pairs scored "
             "(season=%s, position=%s, team=%s).",
-            f"{len(result):,}", season, position_filter, team_filter,
+            f"{len(result):,}",
+            season,
+            position_filter,
+            team_filter,
         )
         return result
 
@@ -422,23 +434,27 @@ class RosterFitModel(BaseModel):
                 "similarity.  Call fit() with outcomes_df to enable Ridge scoring."
             )
             return self.score_cosine_only(
-                player_profiles, team_profiles, season,
-                position_filter, team_filter,
+                player_profiles,
+                team_profiles,
+                season,
+                position_filter,
+                team_filter,
             )
 
         players_s = self._filter_players(player_profiles, season, position_filter)
-        teams_s   = self._filter_teams(team_profiles, season, team_filter)
+        teams_s = self._filter_teams(team_profiles, season, team_filter)
 
         if players_s.empty or teams_s.empty:
             logger.warning(
-                "score: no data after filtering "
-                "(season=%s, position=%s, team=%s).",
-                season, position_filter, team_filter,
+                "score: no data after filtering " "(season=%s, position=%s, team=%s).",
+                season,
+                position_filter,
+                team_filter,
             )
             return pd.DataFrame()
 
         records = self._score_all_pairs(players_s, teams_s, use_ridge=True)
-        result  = pd.DataFrame(records)
+        result = pd.DataFrame(records)
 
         if result.empty:
             return result
@@ -452,7 +468,10 @@ class RosterFitModel(BaseModel):
         logger.info(
             "score (Ridge) → %s (player, team) pairs scored "
             "(season=%s, position=%s, team=%s).",
-            f"{len(result):,}", season, position_filter, team_filter,
+            f"{len(result):,}",
+            season,
+            position_filter,
+            team_filter,
         )
         return result
 
@@ -512,9 +531,7 @@ class RosterFitModel(BaseModel):
         required_cols = {"player_id", "team", "join_season", "production_z"}
         missing = required_cols - set(outcomes_df.columns)
         if missing:
-            raise ValueError(
-                f"outcomes_df is missing required columns: {missing}"
-            )
+            raise ValueError(f"outcomes_df is missing required columns: {missing}")
 
         X, y, pairs_used = self._build_interaction_matrix(
             player_profiles, team_profiles, outcomes_df
@@ -524,7 +541,8 @@ class RosterFitModel(BaseModel):
             logger.warning(
                 "Only %d training rows — Ridge model may be unreliable.  "
                 "Minimum recommended: %d.",
-                len(X), _MIN_TRAINING_ROWS,
+                len(X),
+                _MIN_TRAINING_ROWS,
             )
 
         if len(X) == 0:
@@ -532,24 +550,27 @@ class RosterFitModel(BaseModel):
             return self
 
         self._scaler = StandardScaler()
-        X_scaled     = self._scaler.fit_transform(X)
+        X_scaled = self._scaler.fit_transform(X)
 
         self._ridge = RidgeCV(
             alphas=self.ridge_alphas,
-            cv=None,           # LOO-CV
+            cv=None,  # LOO-CV
             fit_intercept=True,
         )
         self._ridge.fit(X_scaled, y)
         self._dim_pairs_used = pairs_used
-        self._is_fitted      = True
-        self._is_trained     = True  # keep BaseModel flag in sync
+        self._is_fitted = True
+        self._is_trained = True  # keep BaseModel flag in sync
 
-        r2    = self._ridge.score(X_scaled, y)
+        r2 = self._ridge.score(X_scaled, y)
         alpha = self._ridge.alpha_
         logger.info(
             "RosterFitModel fitted on %d transitions | %d interaction features | "
             "alpha=%.3f | train R²=%.3f",
-            len(X), X.shape[1], alpha, r2,
+            len(X),
+            X.shape[1],
+            alpha,
+            r2,
         )
         return self
 
@@ -565,10 +586,10 @@ class RosterFitModel(BaseModel):
         BaseModel.save(), which writes model.pkl + metadata.json.
         """
         self._model = {
-            "ridge":          self._ridge,
-            "scaler":         self._scaler,
+            "ridge": self._ridge,
+            "scaler": self._scaler,
             "dim_pairs_used": self._dim_pairs_used,
-            "is_fitted":      self._is_fitted,
+            "is_fitted": self._is_fitted,
         }
         self._metadata["ridge_alphas"] = list(self.ridge_alphas)
         path = super().save(artifact_dir)
@@ -584,10 +605,10 @@ class RosterFitModel(BaseModel):
         """
         super().load(artifact_dir)
         if isinstance(self._model, dict):
-            self._ridge          = self._model.get("ridge")
-            self._scaler         = self._model.get("scaler")
+            self._ridge = self._model.get("ridge")
+            self._scaler = self._model.get("scaler")
             self._dim_pairs_used = self._model.get("dim_pairs_used", [])
-            self._is_fitted      = self._model.get("is_fitted", self._is_trained)
+            self._is_fitted = self._model.get("is_fitted", self._is_trained)
         logger.info("RosterFitModel loaded (fitted=%s)", self._is_fitted)
         return self
 
@@ -597,7 +618,7 @@ class RosterFitModel(BaseModel):
 
     async def score_from_lake(
         self,
-        client,                          # DataLakeClient
+        client,  # DataLakeClient
         season: int,
         position_filter: Optional[str] = None,
         team_filter: Optional[str] = None,
@@ -656,12 +677,16 @@ class RosterFitModel(BaseModel):
 
         if use_ridge and self._is_fitted:
             return self.score(
-                player_profiles, team_profiles, season,
+                player_profiles,
+                team_profiles,
+                season,
                 position_filter=position_filter,
                 team_filter=team_filter,
             )
         return self.score_cosine_only(
-            player_profiles, team_profiles, season,
+            player_profiles,
+            team_profiles,
+            season,
             position_filter=position_filter,
             team_filter=team_filter,
         )
@@ -688,12 +713,14 @@ class RosterFitModel(BaseModel):
         coefs = self._ridge.coef_
         rows = []
         for (p_dim, s_dim), coef in zip(self._dim_pairs_used, coefs):
-            rows.append({
-                "player_dim": p_dim,
-                "scheme_dim": s_dim,
-                "label":      _readable_dim_name(p_dim, s_dim),
-                "ridge_coef": coef,
-            })
+            rows.append(
+                {
+                    "player_dim": p_dim,
+                    "scheme_dim": s_dim,
+                    "label": _readable_dim_name(p_dim, s_dim),
+                    "ridge_coef": coef,
+                }
+            )
         return (
             pd.DataFrame(rows)
             .assign(abs_coef=lambda d: d["ridge_coef"].abs())
@@ -731,8 +758,9 @@ class RosterFitModel(BaseModel):
         return (
             df.sort_values("fit_score", ascending=False)
             .groupby("team", as_index=False)
-            .head(top_n)
-            [["team", "player_name", "position", "fit_score", "top_fit_reasons"]]
+            .head(top_n)[
+                ["team", "player_name", "position", "fit_score", "top_fit_reasons"]
+            ]
             .reset_index(drop=True)
         )
 
@@ -758,7 +786,7 @@ class RosterFitModel(BaseModel):
         # For each player, prefer the row matching *season*.
         # If absent, fall back to the most recent row.
         has_season = df[df["season"] == season]
-        no_season  = df[~df["player_id"].isin(has_season["player_id"])]
+        no_season = df[~df["player_id"].isin(has_season["player_id"])]
         if not no_season.empty:
             fallback = (
                 no_season.sort_values("season")
@@ -788,7 +816,8 @@ class RosterFitModel(BaseModel):
             max_season = team_profiles["season"].max()
             logger.warning(
                 "No team profiles for season=%s; using latest available: %s.",
-                season, max_season,
+                season,
+                max_season,
             )
             df = team_profiles[team_profiles["season"] == max_season].copy()
             df["season"] = season  # Relabel so output is consistent.
@@ -828,18 +857,21 @@ class RosterFitModel(BaseModel):
                 continue
 
             pos_players = players[players["position_group"] == pos_group]
-            pairs       = _get_pairs(pos_group)
+            pairs = _get_pairs(pos_group)
 
             # Keep only pairs where both dimensions exist in the DataFrames.
             valid_pairs = [
-                (p, s) for p, s in pairs
+                (p, s)
+                for p, s in pairs
                 if p in pos_players.columns and s in teams.columns
             ]
             if len(valid_pairs) < _MIN_VECTOR_DIMS:
                 logger.debug(
                     "Position group %s: only %d valid dimension pair(s) — "
                     "skipping (need ≥ %d).",
-                    pos_group, len(valid_pairs), _MIN_VECTOR_DIMS,
+                    pos_group,
+                    len(valid_pairs),
+                    _MIN_VECTOR_DIMS,
                 )
                 continue
 
@@ -847,17 +879,20 @@ class RosterFitModel(BaseModel):
             s_dims = [s for _, s in valid_pairs]
 
             # Build matrices: fill NaN with 0 (neutral contribution).
-            P = pos_players[p_dims].fillna(0.0).values.astype(float)  # (n_players, n_dims)
-            T = teams[s_dims].fillna(0.0).values.astype(float)         # (n_teams, n_dims)
+            P = (
+                pos_players[p_dims].fillna(0.0).values.astype(float)
+            )  # (n_players, n_dims)
+            T = teams[s_dims].fillna(0.0).values.astype(float)  # (n_teams, n_dims)
 
             # ── Vectorized cosine similarity ──────────────────────────────
             P_norms = np.linalg.norm(P, axis=1, keepdims=True)  # (n_players, 1)
             T_norms = np.linalg.norm(T, axis=1, keepdims=True)  # (n_teams, 1)
 
-            dot     = P @ T.T                   # (n_players, n_teams)
-            denom   = P_norms @ T_norms.T       # (n_players, n_teams)
-            cosine  = np.divide(
-                dot, denom,
+            dot = P @ T.T  # (n_players, n_teams)
+            denom = P_norms @ T_norms.T  # (n_players, n_teams)
+            cosine = np.divide(
+                dot,
+                denom,
                 out=np.zeros_like(dot),
                 where=denom > 0,
             )  # (n_players, n_teams)
@@ -886,17 +921,17 @@ class RosterFitModel(BaseModel):
                         dim_scores.items(), key=lambda x: x[1], reverse=True
                     )
                     record: dict = {
-                        "player_id":           p_row.get("player_id"),
-                        "player_name":         p_row.get("player_name", ""),
-                        "position":            p_row.get("position", ""),
-                        "position_group":      pos_group,
-                        "team":                t_row["team"],
-                        "season":              t_row["season"],
-                        "cosine_similarity":   float(cosine[i, j]),
-                        "top_fit_reasons":     self._reasons(
+                        "player_id": p_row.get("player_id"),
+                        "player_name": p_row.get("player_name", ""),
+                        "position": p_row.get("position", ""),
+                        "position_group": pos_group,
+                        "team": t_row["team"],
+                        "season": t_row["season"],
+                        "cosine_similarity": float(cosine[i, j]),
+                        "top_fit_reasons": self._reasons(
                             sorted_dims[:2], valid_pairs, positive=True
                         ),
-                        "bottom_fit_reasons":  self._reasons(
+                        "bottom_fit_reasons": self._reasons(
                             sorted_dims[-2:], valid_pairs, positive=False
                         ),
                         **dim_scores,
@@ -924,10 +959,10 @@ class RosterFitModel(BaseModel):
 
         # Build the full feature vector expected by the Ridge model.
         n_features = len(self._dim_pairs_used)
-        pair_index  = {pair: idx for idx, pair in enumerate(self._dim_pairs_used)}
+        pair_index = {pair: idx for idx, pair in enumerate(self._dim_pairs_used)}
 
-        flat_shape  = (n_players * n_teams, n_features)
-        X_flat      = np.zeros(flat_shape, dtype=float)
+        flat_shape = (n_players * n_teams, n_features)
+        X_flat = np.zeros(flat_shape, dtype=float)
 
         for k, pair in enumerate(valid_pairs):
             if pair in pair_index:
@@ -935,7 +970,7 @@ class RosterFitModel(BaseModel):
                 X_flat[:, col] = interaction[:, :, k].ravel()
 
         X_scaled = self._scaler.transform(X_flat)
-        raw      = self._ridge.predict(X_scaled)
+        raw = self._ridge.predict(X_scaled)
         return raw.reshape(n_players, n_teams)
 
     # ─────────────────────────────────────────────────────────────────────
@@ -976,20 +1011,20 @@ class RosterFitModel(BaseModel):
                     seen.add(pair)
 
         pair_to_idx = {pair: i for i, pair in enumerate(all_pairs)}
-        n_features  = len(all_pairs)
+        n_features = len(all_pairs)
 
         rows_X: list[np.ndarray] = []
-        rows_y: list[float]      = []
+        rows_y: list[float] = []
 
         for _, outcome in outcomes_df.iterrows():
-            pid        = outcome["player_id"]
-            team       = outcome["team"]
+            pid = outcome["player_id"]
+            team = outcome["team"]
             join_season = int(outcome["join_season"])
-            target     = float(outcome["production_z"])
+            target = float(outcome["production_z"])
 
             # Player profile: use season before join (pre-join performance)
             p_season = join_season - 1
-            p_rows   = player_profiles[
+            p_rows = player_profiles[
                 (player_profiles["player_id"] == pid)
                 & (player_profiles["season"] == p_season)
             ]
@@ -1013,10 +1048,10 @@ class RosterFitModel(BaseModel):
             if t_rows.empty:
                 continue
 
-            p_row  = p_rows.iloc[0]
-            t_row  = t_rows.iloc[0]
-            pg     = p_row.get("position_group", "UNK")
-            pairs  = _get_pairs(pg)
+            p_row = p_rows.iloc[0]
+            t_row = t_rows.iloc[0]
+            pg = p_row.get("position_group", "UNK")
+            pairs = _get_pairs(pg)
 
             # Build interaction vector of length n_features (zeros for absent pairs)
             x_vec = np.zeros(n_features, dtype=float)
@@ -1044,7 +1079,9 @@ class RosterFitModel(BaseModel):
         y = np.array(rows_y, dtype=float)
         logger.info(
             "Interaction matrix built: %d rows × %d features from %d outcomes.",
-            X.shape[0], X.shape[1], len(outcomes_df),
+            X.shape[0],
+            X.shape[1],
+            len(outcomes_df),
         )
         return X, y, all_pairs
 
@@ -1067,18 +1104,16 @@ class RosterFitModel(BaseModel):
         valid_pairs : the (player_dim, scheme_dim) pairs used for this group.
         positive : True → top fit reasons; False → bottom fit reasons (misfit).
         """
-        pair_lookup = {
-            f"{p}_{s}_fit": (p, s) for p, s in valid_pairs
-        }
+        pair_lookup = {f"{p}_{s}_fit": (p, s) for p, s in valid_pairs}
         reasons = []
         for dim_key, score in sorted_dims:
             if dim_key not in pair_lookup:
                 continue
             p_dim, s_dim = pair_lookup[dim_key]
-            label        = _readable_dim_name(p_dim, s_dim)
-            direction    = "strong fit" if score > 0 else "misfit"
+            label = _readable_dim_name(p_dim, s_dim)
+            direction = "strong fit" if score > 0 else "misfit"
             if not positive and score >= 0:
-                continue   # only include genuine misfits in bottom reasons
+                continue  # only include genuine misfits in bottom reasons
             reasons.append(f"{label}: {direction} ({score:+.2f})")
         return reasons
 
@@ -1126,12 +1161,23 @@ if __name__ == "__main__":
             sys.exit(0)
 
         display_cols = [
-            c for c in
-            ["player_name", "position", "team", "fit_score",
-             "cosine_similarity", "top_fit_reasons"]
+            c
+            for c in [
+                "player_name",
+                "position",
+                "team",
+                "fit_score",
+                "cosine_similarity",
+                "top_fit_reasons",
+            ]
             if c in results.columns
         ]
-        print(results[display_cols].sort_values("cosine_similarity", ascending=False).head(20).to_string(index=False))
+        print(
+            results[display_cols]
+            .sort_values("cosine_similarity", ascending=False)
+            .head(20)
+            .to_string(index=False)
+        )
         print(f"\nTotal pairs scored: {len(results):,}")
 
     asyncio.run(main())

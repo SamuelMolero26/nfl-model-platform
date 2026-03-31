@@ -81,7 +81,13 @@ class HealthAnalyzerModel(BaseModel):
         self._feature_cols = [c for c in FEATURE_COLS if c in X.columns]
         frame = self._impute(X)
 
-        _fit_cols = ["player_season_id", "start", "stop", "event", "position_group"] + self._feature_cols
+        _fit_cols = [
+            "player_season_id",
+            "start",
+            "stop",
+            "event",
+            "position_group",
+        ] + self._feature_cols
         penalizer = self._metadata.get("penalizer", 0.1)
         self._cox = CoxTimeVaryingFitter(penalizer=penalizer)
         self._cox.fit(
@@ -135,8 +141,12 @@ class HealthAnalyzerModel(BaseModel):
         # Build a per-week prediction frame for the full season
         # Time-varying cols handled explicitly below; all others from row/medians
         _time_varying_explicit = {
-            "snap_share_rolling_8wk", "acwr", "snap_share_vs_pos_median",
-            "season_snap_acceleration", "games_played_this_season", "career_games_played",
+            "snap_share_rolling_8wk",
+            "acwr",
+            "snap_share_vs_pos_median",
+            "season_snap_acceleration",
+            "games_played_this_season",
+            "career_games_played",
         }
         rows = []
         for week in range(1, SEASON_WEEKS + 1):
@@ -149,10 +159,12 @@ class HealthAnalyzerModel(BaseModel):
             if mode == "draft":
                 # Draft-time: no career history — use position medians
                 r["snap_share_rolling_8wk"] = float(
-                    pos_medians.get("snap_share_rolling_8wk",
-                                    global_medians.get("snap_share_rolling_8wk", 0.3))
+                    pos_medians.get(
+                        "snap_share_rolling_8wk",
+                        global_medians.get("snap_share_rolling_8wk", 0.3),
+                    )
                 )
-                r["acwr"] = 1.0          # no workload spike at draft time
+                r["acwr"] = 1.0  # no workload spike at draft time
                 r["snap_share_vs_pos_median"] = 1.0
                 r["season_snap_acceleration"] = 0.0
                 r["games_played_this_season"] = float(week - 1)
@@ -182,11 +194,10 @@ class HealthAnalyzerModel(BaseModel):
         log_hz = self._cox.predict_log_partial_hazard(pred_frame[self._feature_cols])
         partial_hz = np.exp(log_hz.values)
 
-        
         # Build survival curve via the Breslow baseline cumulative hazard.
         # For a time-varying Cox model:
         #   S(t) = exp(-Σ_{s=1}^{t} ΔH0(s) · exp(β'x(s)))
-        # where ΔH0(s) is the baseline hazard increment at week. 
+        # where ΔH0(s) is the baseline hazard increment at week.
         bch_series = self._cox.baseline_cumulative_hazard_.iloc[:, 0]
         stops = pred_frame["stop"].values
         bch_aligned = bch_series.reindex(stops).bfill().ffill().fillna(0.0).values
@@ -234,10 +245,9 @@ class HealthAnalyzerModel(BaseModel):
             )
             .reset_index()
         )
-        
+
         c_idx = concordance_index(per_ps["duration"], -per_ps["risk"], per_ps["event"])
 
-    
         return {
             "concordance_index": round(float(c_idx), 4),
             "event_rate": round(float(frame["event"].mean()), 4),
@@ -295,20 +305,21 @@ class HealthAnalyzerModel(BaseModel):
         return factors[:n]
 
     def _impute(self, frame: pd.DataFrame) -> pd.DataFrame:
-        
+
         frame = frame.copy()
-        
+
         cols = [c for c in self._feature_cols if c in frame.columns]
         frame[cols] = frame[cols].replace([np.inf, -np.inf], np.nan)
         if self._imputer is not None:
             from serving.models.health_analyzer.features import STATIC_FEATURE_COLS
+
             static_cols = [c for c in STATIC_FEATURE_COLS if c in frame.columns]
             frame[static_cols] = self._imputer.transform(frame[static_cols])
         else:
             for col in cols:
                 if frame[col].isna().any():
                     frame[col] = frame[col].fillna(frame[col].median())
-                    
+
         return frame
 
     # Save / Load (extends BaseModel to also persist risk distributions)
@@ -317,7 +328,7 @@ class HealthAnalyzerModel(BaseModel):
 
         with open(path / "position_risk_distributions.pkl", "wb") as f:
             pickle.dump(self._position_risk_distributions, f)
-            
+
         if self._imputer is not None:
             with open(path / "imputer.pkl", "wb") as f:
                 pickle.dump(self._imputer, f)
@@ -334,7 +345,7 @@ class HealthAnalyzerModel(BaseModel):
                 / self.MODEL_NAME
                 / self.MODEL_VERSION
             )
-            
+
         artifact_dir = Path(artifact_dir)
 
         dist_path = Path(artifact_dir) / "position_risk_distributions.pkl"

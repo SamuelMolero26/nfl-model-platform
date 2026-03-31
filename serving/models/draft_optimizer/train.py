@@ -70,6 +70,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+
 # ---------------------------------------------------------------------------
 # Path bootstrap — CWD-first since python -m is run from the project root.
 # Falls back to walking upward from __file__ looking for known root markers.
@@ -83,12 +84,15 @@ def _find_project_root() -> Path:
             return parent
     return cwd  # last resort — let the import error surface naturally
 
+
 _ROOT = _find_project_root()
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from serving.models.draft_optimizer.features import fetch_prospect_scores_batch  # noqa: E402
-from serving.models.draft_optimizer.model import DraftOptimizerModel             # noqa: E402
+from serving.models.draft_optimizer.features import (
+    fetch_prospect_scores_batch,
+)  # noqa: E402
+from serving.models.draft_optimizer.model import DraftOptimizerModel  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,12 +104,12 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Artifact paths
 # ---------------------------------------------------------------------------
-_ARTIFACT_DIR    = _ROOT / "artifacts" / "draft_optimizer" / "v1"
-_PKL_PATH        = _ARTIFACT_DIR / "model.pkl"
-_META_PATH       = _ARTIFACT_DIR / "metadata.json"
-_BASELINE_PATH   = _ARTIFACT_DIR / "baseline_results.parquet"
-_FEATURE_CACHE   = _ARTIFACT_DIR / "features" / "calibration_batch.parquet"
-_HOLDOUT_CACHE   = _ARTIFACT_DIR / "features" / "holdout_batch.parquet"
+_ARTIFACT_DIR = _ROOT / "artifacts" / "draft_optimizer" / "v1"
+_PKL_PATH = _ARTIFACT_DIR / "model.pkl"
+_META_PATH = _ARTIFACT_DIR / "metadata.json"
+_BASELINE_PATH = _ARTIFACT_DIR / "baseline_results.parquet"
+_FEATURE_CACHE = _ARTIFACT_DIR / "features" / "calibration_batch.parquet"
+_HOLDOUT_CACHE = _ARTIFACT_DIR / "features" / "holdout_batch.parquet"
 
 # Minimum seasons required — warn if calibration window is too narrow
 _MIN_CALIBRATION_SEASONS = 10
@@ -114,6 +118,7 @@ _MIN_CALIBRATION_SEASONS = 10
 # ===========================================================================
 # Validation helpers
 # ===========================================================================
+
 
 def _adp_baseline_score(df: pd.DataFrame) -> float:
     """
@@ -131,8 +136,8 @@ def _adp_baseline_score(df: pd.DataFrame) -> float:
         return 0.0
 
     df = df.copy()
-    df["pick"]  = pd.to_numeric(df["pick"],  errors="coerce")
-    df["w_av"]  = pd.to_numeric(df["w_av"],  errors="coerce").fillna(0)
+    df["pick"] = pd.to_numeric(df["pick"], errors="coerce")
+    df["w_av"] = pd.to_numeric(df["w_av"], errors="coerce").fillna(0)
     df["draft_value_percentile"] = pd.to_numeric(
         df["draft_value_percentile"], errors="coerce"
     ).fillna(0)
@@ -179,8 +184,8 @@ def _optimizer_baseline_score(
         return 0.0
 
     df = holdout_df.copy()
-    df["pick"]  = pd.to_numeric(df["pick"],  errors="coerce")
-    df["w_av"]  = pd.to_numeric(df["w_av"],  errors="coerce").fillna(0)
+    df["pick"] = pd.to_numeric(df["pick"], errors="coerce")
+    df["w_av"] = pd.to_numeric(df["w_av"], errors="coerce").fillna(0)
     df["draft_value_percentile"] = pd.to_numeric(
         df["draft_value_percentile"], errors="coerce"
     ).fillna(0)
@@ -231,21 +236,27 @@ def _build_baseline_results(
     rows = []
     for _, row in df.iterrows():
         pick = int(row["pick"]) if pd.notna(row["pick"]) else 0
-        expected_av     = model.expected_av_curve.get(pick, 0.0)
+        expected_av = model.expected_av_curve.get(pick, 0.0)
         expected_scaled = (expected_av / max_av) * 100.0 if max_av > 0 else 0.0
-        rows.append({
-            "season":               row.get("season"),
-            "pick":                 pick,
-            "player_id":            row.get("player_id", ""),
-            "player_name":          row.get("player_name", ""),
-            "position":             row.get("position", ""),
-            "position_group":       row.get("position_group", ""),
-            "w_av":                 round(float(row["w_av"]), 3),
-            "draft_value_percentile": round(float(row["draft_value_percentile"]), 3),
-            "expected_av_at_slot":  round(expected_av, 3),
-            "expected_scaled":      round(expected_scaled, 3),
-            "value_over_adp":       round(float(row["draft_value_percentile"]) - expected_scaled, 3),
-        })
+        rows.append(
+            {
+                "season": row.get("season"),
+                "pick": pick,
+                "player_id": row.get("player_id", ""),
+                "player_name": row.get("player_name", ""),
+                "position": row.get("position", ""),
+                "position_group": row.get("position_group", ""),
+                "w_av": round(float(row["w_av"]), 3),
+                "draft_value_percentile": round(
+                    float(row["draft_value_percentile"]), 3
+                ),
+                "expected_av_at_slot": round(expected_av, 3),
+                "expected_scaled": round(expected_scaled, 3),
+                "value_over_adp": round(
+                    float(row["draft_value_percentile"]) - expected_scaled, 3
+                ),
+            }
+        )
 
     return pd.DataFrame(rows)
 
@@ -253,6 +264,7 @@ def _build_baseline_results(
 # ===========================================================================
 # Reporting
 # ===========================================================================
+
 
 def _section(title: str) -> None:
     width = 72
@@ -262,10 +274,10 @@ def _section(title: str) -> None:
 
 
 def _print_validation_report(
-    cal_df:         pd.DataFrame,
-    holdout_df:     pd.DataFrame,
-    model:          DraftOptimizerModel,
-    adp_score:      float,
+    cal_df: pd.DataFrame,
+    holdout_df: pd.DataFrame,
+    model: DraftOptimizerModel,
+    adp_score: float,
     optimizer_score: float,
     beats_baseline: bool,
 ) -> None:
@@ -273,8 +285,10 @@ def _print_validation_report(
 
     _section("Calibration data summary")
     print(f"  Picks in calibration window : {len(cal_df):,}")
-    print(f"  Draft seasons covered       : {cal_df['season'].nunique():,}  "
-          f"({int(cal_df['season'].min())}–{int(cal_df['season'].max())})")
+    print(
+        f"  Draft seasons covered       : {cal_df['season'].nunique():,}  "
+        f"({int(cal_df['season'].min())}–{int(cal_df['season'].max())})"
+    )
     print(f"  Picks with w_av > 0         : {(cal_df['w_av'] > 0).sum():,}")
     print(f"  AV curve slots built        : {len(model.expected_av_curve):,}")
 
@@ -283,8 +297,8 @@ def _print_validation_report(
     print(f"  {'Pick':>6}  {'Mean w_av':>10}  {'Pick value (0–100)':>20}")
     print(f"  {'------':>6}  {'---------':>10}  {'------------------':>20}")
     for p in slots:
-        av  = model.expected_av_curve.get(p, None)
-        pv  = model.pick_value_table.get(p, None)
+        av = model.expected_av_curve.get(p, None)
+        pv = model.pick_value_table.get(p, None)
         av_str = f"{av:.2f}" if av is not None else "n/a"
         pv_str = f"{pv:.1f}" if pv is not None else "n/a"
         print(f"  {p:>6}  {av_str:>10}  {pv_str:>20}")
@@ -292,17 +306,22 @@ def _print_validation_report(
     _section("Positional quota defaults (p95 picks per draft)")
     for group, quota in sorted(model.positional_quota_defaults.items()):
         threshold = model.need_score_thresholds.get(group, 0.0)
-        print(f"  {group:<8}  max {quota} picks   "
-              f"no-need threshold: {threshold:.3f}")
+        print(
+            f"  {group:<8}  max {quota} picks   " f"no-need threshold: {threshold:.3f}"
+        )
 
     _section("Holdout validation -- 2021-2022")
     print(f"  Holdout picks               : {len(holdout_df):,}")
     adp_sign = "+" if adp_score >= 0 else ""
     opt_sign = "+" if optimizer_score >= 0 else ""
-    print(f"  ADP baseline score          : {adp_sign}{adp_score:.4f}  "
-          f"(mean w_av - expected at slot)")
-    print(f"  Optimizer score             : {opt_sign}{optimizer_score:.4f}  "
-          f"(mean percentile - expected scaled)")
+    print(
+        f"  ADP baseline score          : {adp_sign}{adp_score:.4f}  "
+        f"(mean w_av - expected at slot)"
+    )
+    print(
+        f"  Optimizer score             : {opt_sign}{optimizer_score:.4f}  "
+        f"(mean percentile - expected scaled)"
+    )
     beat_str = "PASSES" if beats_baseline else "FAILS"
     print(f"  Beats ADP baseline          : {beat_str}")
     if not beats_baseline:
@@ -322,32 +341,43 @@ def _print_validation_report(
 # Main
 # ===========================================================================
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Calibrate and validate the Draft Optimizer model."
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Calibrate and validate but do not save the artifact.",
     )
     parser.add_argument(
-        "--year-start", type=int, default=2000,
+        "--year-start",
+        type=int,
+        default=2000,
         help="First year of calibration window (default: 2000).",
     )
     parser.add_argument(
-        "--year-end", type=int, default=2020,
+        "--year-end",
+        type=int,
+        default=2020,
         help="Last year of calibration window (default: 2020).",
     )
     parser.add_argument(
-        "--holdout-start", type=int, default=2021,
+        "--holdout-start",
+        type=int,
+        default=2021,
         help="First holdout year (default: 2021).",
     )
     parser.add_argument(
-        "--holdout-end", type=int, default=2022,
+        "--holdout-end",
+        type=int,
+        default=2022,
         help="Last holdout year (default: 2022).",
     )
     parser.add_argument(
-        "--refresh-cache", action="store_true",
+        "--refresh-cache",
+        action="store_true",
         help="Re-fetch from DuckDB even if a feature cache exists.",
     )
     args = parser.parse_args()
@@ -357,8 +387,10 @@ def main() -> None:
         logger.error(
             "Calibration window (%s–%s) overlaps with holdout (%s–%s). "
             "year-end must be < holdout-start. Aborting.",
-            args.year_start, args.year_end,
-            args.holdout_start, args.holdout_end,
+            args.year_start,
+            args.year_end,
+            args.holdout_start,
+            args.holdout_end,
         )
         sys.exit(1)
 
@@ -372,9 +404,12 @@ def main() -> None:
     else:
         logger.info(
             "Fetching calibration batch %s–%s from data lake …",
-            args.year_start, args.year_end,
+            args.year_start,
+            args.year_end,
         )
-        cal_df = asyncio.run(fetch_prospect_scores_batch(args.year_start, args.year_end))
+        cal_df = asyncio.run(
+            fetch_prospect_scores_batch(args.year_start, args.year_end)
+        )
         if cal_df.empty:
             logger.error(
                 "Calibration batch is empty. "
@@ -393,7 +428,8 @@ def main() -> None:
         logger.warning(
             "Only %s calibration seasons found (minimum recommended: %s). "
             "The expected_av_curve and quota tables may be noisy.",
-            n_seasons, _MIN_CALIBRATION_SEASONS,
+            n_seasons,
+            _MIN_CALIBRATION_SEASONS,
         )
 
     # ── Step 2: Load holdout data (touched once, only for validation) ──────
@@ -405,9 +441,12 @@ def main() -> None:
     else:
         logger.info(
             "Fetching holdout batch %s–%s from data lake …",
-            args.holdout_start, args.holdout_end,
+            args.holdout_start,
+            args.holdout_end,
         )
-        holdout_df = asyncio.run(fetch_prospect_scores_batch(args.holdout_start, args.holdout_end))
+        holdout_df = asyncio.run(
+            fetch_prospect_scores_batch(args.holdout_start, args.holdout_end)
+        )
         if not holdout_df.empty:
             _HOLDOUT_CACHE.parent.mkdir(parents=True, exist_ok=True)
             holdout_df.to_parquet(_HOLDOUT_CACHE, index=False)
@@ -426,16 +465,20 @@ def main() -> None:
     # ── Step 4: Baseline comparison on holdout ─────────────────────────────
     _section("Step 4 — ADP baseline comparison")
 
-    adp_score       = _adp_baseline_score(holdout_df)
+    adp_score = _adp_baseline_score(holdout_df)
     optimizer_score = _optimizer_baseline_score(holdout_df, model)
-    beats_baseline  = optimizer_score > adp_score
+    beats_baseline = optimizer_score > adp_score
 
     baseline_results = _build_baseline_results(holdout_df, model)
 
     # ── Step 5: Validation report ──────────────────────────────────────────
     _print_validation_report(
-        cal_df, holdout_df, model,
-        adp_score, optimizer_score, beats_baseline,
+        cal_df,
+        holdout_df,
+        model,
+        adp_score,
+        optimizer_score,
+        beats_baseline,
     )
 
     # ── Step 6: Save (unless dry-run) ──────────────────────────────────────
@@ -463,11 +506,11 @@ def main() -> None:
         with open(_META_PATH) as f:
             meta = json.load(f)
         meta["validation"] = {
-            "holdout_years":    [args.holdout_start, args.holdout_end],
-            "holdout_picks":    len(holdout_df),
-            "adp_baseline_score":    adp_score,
-            "optimizer_score":       optimizer_score,
-            "beats_adp_baseline":    beats_baseline,
+            "holdout_years": [args.holdout_start, args.holdout_end],
+            "holdout_picks": len(holdout_df),
+            "adp_baseline_score": adp_score,
+            "optimizer_score": optimizer_score,
+            "beats_adp_baseline": beats_baseline,
         }
         with open(_META_PATH, "w") as f:
             json.dump(meta, f, indent=2)

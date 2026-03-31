@@ -124,17 +124,17 @@ POSITION_GROUPS = {
 # Static within a player-season (constant across all weeks of the same season).
 # KNN imputation is applied at player-season level for these columns.
 STATIC_FEATURE_COLS = [
-    "weight_lbs",              # joint stress — heavier players sustain more load per play
-    "bmi",                     # load relative to frame
-    "strength_score",          # muscular support / injury resistance
-    "speed_score",             # explosive athletes → higher soft-tissue stress
-    "burst_score",             # acceleration-deceleration forces
-    "age",                     # biological degradation
-    "seasons_played",          # accumulated NFL seasons (career wear proxy)
+    "weight_lbs",  # joint stress — heavier players sustain more load per play
+    "bmi",  # load relative to frame
+    "strength_score",  # muscular support / injury resistance
+    "speed_score",  # explosive athletes → higher soft-tissue stress
+    "burst_score",  # acceleration-deceleration forces
+    "age",  # biological degradation
+    "seasons_played",  # accumulated NFL seasons (career wear proxy)
     "career_durability_rate",  # 1.0 = never missed a game; protective enrichment signal
-    "has_prior_injury",        # binary: any prior Out week in career (scar tissue modifier)
+    "has_prior_injury",  # binary: any prior Out week in career (scar tissue modifier)
     "prior_season_out_weeks",  # Out weeks in season-1 only (recent injury burden)
-    "injury_free_streak",      # healthy weeks at end of prior season (0 = still recovering)
+    "injury_free_streak",  # healthy weeks at end of prior season (0 = still recovering)
 ]
 
 # Time-varying — updated each week, strictly lagged (no current-week leakage).
@@ -142,12 +142,12 @@ STATIC_FEATURE_COLS = [
 # offense_pct for QB/SKILL/OL) and only include played weeks so injury-forced
 # zeros do not contaminate the chronic workload baseline.
 TIME_VARYING_COLS = [
-    "snap_share_rolling_8wk",    # chronic workload baseline: 8-wk mean of played weeks
-    "acwr",                      # acute:chronic ratio — last week / chronic baseline
+    "snap_share_rolling_8wk",  # chronic workload baseline: 8-wk mean of played weeks
+    "acwr",  # acute:chronic ratio — last week / chronic baseline
     "snap_share_vs_pos_median",  # normalised load vs position peers (same week)
     "season_snap_acceleration",  # last-week snap vs 8-wk trend (ramp-up detector)
     "games_played_this_season",  # cumulative healthy games before current week
-    "career_games_played",       # total career games (accumulated wear)
+    "career_games_played",  # total career games (accumulated wear)
 ]
 
 FEATURE_COLS = STATIC_FEATURE_COLS + TIME_VARYING_COLS
@@ -192,7 +192,9 @@ def _compute_snap_share(snaps: pd.DataFrame) -> pd.DataFrame:
     snaps["_pos_group"] = snaps["position"].map(_map_position).fillna("SKILL")
 
     if "defense_snaps" in snaps.columns:
-        snaps["defense_snaps"] = pd.to_numeric(snaps["defense_snaps"], errors="coerce").fillna(0.0)
+        snaps["defense_snaps"] = pd.to_numeric(
+            snaps["defense_snaps"], errors="coerce"
+        ).fillna(0.0)
 
         def_mask = snaps["_pos_group"].isin(_DEFENSIVE_GROUPS)
         def_norm = (
@@ -203,8 +205,10 @@ def _compute_snap_share(snaps: pd.DataFrame) -> pd.DataFrame:
         )
         snaps = snaps.merge(def_norm, on=["_pos_group", "season"], how="left")
         snaps["_defense_pct"] = (
-            snaps["defense_snaps"] / snaps["_def_norm"].replace(0, np.nan)
-        ).clip(0.0, 1.0).fillna(0.0)
+            (snaps["defense_snaps"] / snaps["_def_norm"].replace(0, np.nan))
+            .clip(0.0, 1.0)
+            .fillna(0.0)
+        )
 
         snaps["snap_share"] = np.where(
             snaps["_pos_group"].isin(_DEFENSIVE_GROUPS),
@@ -312,7 +316,9 @@ def build_survival_frame(
     inj_orig = injuries.copy()
 
     snap_bridge = snap_orig[["player_id", "player", "season"]].drop_duplicates()
-    snap_bridge["season"] = pd.to_numeric(snap_bridge["season"], errors="coerce").dropna()
+    snap_bridge["season"] = pd.to_numeric(
+        snap_bridge["season"], errors="coerce"
+    ).dropna()
     snap_bridge = snap_bridge.dropna(subset=["season"])
     snap_bridge["season"] = snap_bridge["season"].astype(int)
     snap_bridge["_name_lower"] = snap_bridge["player"].str.lower().str.strip()
@@ -406,8 +412,8 @@ def build_survival_frame(
     universe["has_prior_injury"] = (universe["career_out_weeks"] > 0).astype(float)
 
     # prior_season_out_weeks: Out weeks in season-1 specifically (recent burden)
-    prior_season_out = (
-        season_out_counts.rename(columns={"season": "inj_season", "season_out_weeks": "prior_season_out_weeks"})
+    prior_season_out = season_out_counts.rename(
+        columns={"season": "inj_season", "season_out_weeks": "prior_season_out_weeks"}
     )
     prior_season_out["season"] = prior_season_out["inj_season"] + 1
     universe = universe.merge(
@@ -431,14 +437,18 @@ def build_survival_frame(
         how="left",
     )
     inj_streak = inj_streak[inj_streak["inj_season"] == inj_streak["season"] - 1]
-    inj_streak["injury_free_streak"] = (MAX_WEEK - inj_streak["last_out_week"]).clip(lower=0)
+    inj_streak["injury_free_streak"] = (MAX_WEEK - inj_streak["last_out_week"]).clip(
+        lower=0
+    )
     universe = universe.merge(
         inj_streak[["player_id", "season", "injury_free_streak"]],
         on=["player_id", "season"],
         how="left",
     )
     # No injury in prior season → full season healthy = MAX_WEEK
-    universe["injury_free_streak"] = universe["injury_free_streak"].fillna(float(MAX_WEEK))
+    universe["injury_free_streak"] = universe["injury_free_streak"].fillna(
+        float(MAX_WEEK)
+    )
 
     # ── Time-varying: workload features (all strictly lagged) ─────────────────
     universe = universe.sort_values(["player_id", "season", "week"])
@@ -467,17 +477,23 @@ def build_survival_frame(
     # Correctly captures workload spikes without being contaminated by injury zeros.
     # fillna(1.0) when chronic=0 (no prior active weeks) = neutral load assumption.
     universe["acwr"] = (
-        universe["_snap_last_week"]
-        / universe["snap_share_rolling_8wk"].replace(0, np.nan)
-    ).fillna(1.0).clip(upper=3.0)
+        (
+            universe["_snap_last_week"]
+            / universe["snap_share_rolling_8wk"].replace(0, np.nan)
+        )
+        .fillna(1.0)
+        .clip(upper=3.0)
+    )
 
     # Snap share vs position median: normalises across positions
-    pos_median_snap = universe.groupby(
-        ["position_group", "season", "week"]
-    )["snap_share_rolling_8wk"].transform("median")
+    pos_median_snap = universe.groupby(["position_group", "season", "week"])[
+        "snap_share_rolling_8wk"
+    ].transform("median")
     universe["snap_share_vs_pos_median"] = (
-        universe["snap_share_rolling_8wk"] / pos_median_snap.replace(0, np.nan)
-    ).fillna(1.0).clip(upper=3.0)
+        (universe["snap_share_rolling_8wk"] / pos_median_snap.replace(0, np.nan))
+        .fillna(1.0)
+        .clip(upper=3.0)
+    )
 
     # Season snap acceleration: last week vs 8wk played-week trend (ramp-up signal)
     universe["season_snap_acceleration"] = (
@@ -499,7 +515,9 @@ def build_survival_frame(
     # ── Static: body composition from combine ─────────────────────────────────
     combine_slim = combine[["player_id"]].copy()
     if "weight_lbs" in combine.columns:
-        combine_slim["weight_lbs"] = pd.to_numeric(combine["weight_lbs"], errors="coerce")
+        combine_slim["weight_lbs"] = pd.to_numeric(
+            combine["weight_lbs"], errors="coerce"
+        )
     if "height_in" in combine.columns:
         combine_slim["height_in"] = pd.to_numeric(combine["height_in"], errors="coerce")
     if "weight_lbs" in combine_slim.columns and "height_in" in combine_slim.columns:
@@ -512,7 +530,9 @@ def build_survival_frame(
     else:
         combine_slim["bmi"] = np.nan
 
-    keep = ["player_id"] + [c for c in ["weight_lbs", "bmi"] if c in combine_slim.columns]
+    keep = ["player_id"] + [
+        c for c in ["weight_lbs", "bmi"] if c in combine_slim.columns
+    ]
     combine_slim = combine_slim[keep].drop_duplicates(subset=["player_id"], keep="last")
     universe = universe.merge(combine_slim, on="player_id", how="left")
 

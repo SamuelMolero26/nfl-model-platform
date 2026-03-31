@@ -153,7 +153,9 @@ async def get_ngs_stats(
     stat_type: 'passing' | 'receiving' | 'rushing'
     """
     if stat_type not in _NGS_STAT_TYPES:
-        raise ValueError(f"stat_type must be one of {_NGS_STAT_TYPES}, got {stat_type!r}")
+        raise ValueError(
+            f"stat_type must be one of {_NGS_STAT_TYPES}, got {stat_type!r}"
+        )
     where = f"WHERE season = {int(season)}" if season else ""
     sql = f"""
         SELECT *

@@ -89,7 +89,9 @@ def _knn_fit(frame: pd.DataFrame, n_neighbors: int = 10) -> tuple:
         .drop_duplicates(subset=["player_season_id"])
         .copy()
     )
-    player_static[static_cols] = player_static[static_cols].replace([np.inf, -np.inf], np.nan)
+    player_static[static_cols] = player_static[static_cols].replace(
+        [np.inf, -np.inf], np.nan
+    )
     imputer = KNNImputer(n_neighbors=n_neighbors, weights="distance")
     imputer.fit(player_static[static_cols])
     return imputer, static_cols
@@ -109,7 +111,11 @@ def _knn_apply(frame: pd.DataFrame, imputer, static_cols: list[str]) -> pd.DataF
     )
     player_static[static_cols] = imputer.transform(player_static[static_cols])
     frame = frame.drop(columns=static_cols)
-    frame = frame.merge(player_static[["player_season_id"] + static_cols], on="player_season_id", how="left")
+    frame = frame.merge(
+        player_static[["player_season_id"] + static_cols],
+        on="player_season_id",
+        how="left",
+    )
     return frame
 
 
@@ -135,7 +141,9 @@ def _drop_low_variance(
     return keep
 
 
-def _c_index(cox: CoxTimeVaryingFitter, frame: pd.DataFrame, feat_cols: list[str] | None = None) -> float:
+def _c_index(
+    cox: CoxTimeVaryingFitter, frame: pd.DataFrame, feat_cols: list[str] | None = None
+) -> float:
     if feat_cols is None:
         feat_cols = [c for c in FEATURE_COLS if c in frame.columns]
     log_hz = cox.predict_log_partial_hazard(frame[feat_cols])
@@ -209,7 +217,13 @@ def train(version: str = "v1") -> HealthAnalyzerModel:
     best_penalizer = 0.1
     best_cv_cindex = 0.0
 
-    _fit_cols = ["player_season_id", "start", "stop", "event", "position_group"] + feat_cols
+    _fit_cols = [
+        "player_season_id",
+        "start",
+        "stop",
+        "event",
+        "position_group",
+    ] + feat_cols
 
     for penalizer in PENALIZER_CANDIDATES:
         fold_cindexes = []

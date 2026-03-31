@@ -332,7 +332,7 @@ async def fetch_feature_matrix(
     log.info("Fetching draft picks …")
     draft_df = await get_draft_picks(client, year_start=year_start, year_end=year_end)
     log.info(f"  draft_picks: {len(draft_df)} rows")
-    
+
     log.info("Fetching athletic profiles …")
     athletic_df = await get_athletic_profiles(client)
     log.info(f"  athletic_profiles: {len(athletic_df)} rows")

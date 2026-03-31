@@ -97,41 +97,41 @@ from __future__ import annotations
 
 POS_TO_GROUP: dict[str, str] = {
     # Quarterback
-    "QB":  "QB",
+    "QB": "QB",
     # Skill
-    "RB":  "SKILL",
-    "HB":  "SKILL",
-    "FB":  "SKILL",
-    "WR":  "SKILL",
-    "TE":  "SKILL",
+    "RB": "SKILL",
+    "HB": "SKILL",
+    "FB": "SKILL",
+    "WR": "SKILL",
+    "TE": "SKILL",
     # Offensive line
-    "OT":  "OL",
-    "OG":  "OL",
-    "C":   "OL",
-    "G":   "OL",
-    "T":   "OL",
-    "OL":  "OL",
+    "OT": "OL",
+    "OG": "OL",
+    "C": "OL",
+    "G": "OL",
+    "T": "OL",
+    "OL": "OL",
     # Defensive line + edge rushers
-    "DE":  "DL",
-    "DT":  "DL",
-    "NT":  "DL",
-    "DL":  "DL",
-    "OLB": "DL",   # edge rusher — NOT grouped with ILB/MLB
-    "EDGE":"DL",   # nflverse explicit edge label (2019+)
+    "DE": "DL",
+    "DT": "DL",
+    "NT": "DL",
+    "DL": "DL",
+    "OLB": "DL",  # edge rusher — NOT grouped with ILB/MLB
+    "EDGE": "DL",  # nflverse explicit edge label (2019+)
     # Linebackers (interior / classic)
     "ILB": "LB",
-    "MLB": "LB",   # was missing from Player Projection — fixed here
-    "LB":  "LB",
+    "MLB": "LB",  # was missing from Player Projection — fixed here
+    "LB": "LB",
     # Defensive backs
-    "CB":  "DB",
-    "S":   "DB",
-    "FS":  "DB",
-    "SS":  "DB",
-    "DB":  "DB",
+    "CB": "DB",
+    "S": "DB",
+    "FS": "DB",
+    "SS": "DB",
+    "DB": "DB",
     # Specialists
-    "K":   "SPEC",
-    "P":   "SPEC",
-    "LS":  "SPEC",
+    "K": "SPEC",
+    "P": "SPEC",
+    "LS": "SPEC",
 }
 
 # Stable ordered list used for one-hot encoding in ML models.

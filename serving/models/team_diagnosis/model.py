@@ -46,6 +46,7 @@ from serving.models.team_diagnosis.team_diagnostic_model.Team_diagnostic import 
     _OFFENSE_WEIGHT,
 )
 
+
 # Helpers
 def _safe_val(v):
     """Convert numpy scalars / pandas NA to JSON-safe Python types."""
@@ -115,9 +116,11 @@ class TeamDiagnosisModel(BaseModel):
         # Build SHAP LinearExplainer over the EW feature space
         self._explainer = self._build_explainer(X)
 
-        self._feature_cols = list(self._core._ew_features) if self._core._is_fitted else [
-            c for c in EW_FEATURE_COLS if c in X.columns
-        ]
+        self._feature_cols = (
+            list(self._core._ew_features)
+            if self._core._is_fitted
+            else [c for c in EW_FEATURE_COLS if c in X.columns]
+        )
         self._is_trained = True
 
     def predict(self, inputs: dict) -> dict:
@@ -264,7 +267,9 @@ class TeamDiagnosisModel(BaseModel):
         available = {}
         for feat_name, src_col in feat_map.items():
             if feat_name in ew_features and src_col in df.columns:
-                available[feat_name] = -df[src_col] if "def_" in feat_name else df[src_col]
+                available[feat_name] = (
+                    -df[src_col] if "def_" in feat_name else df[src_col]
+                )
         if not available:
             return None
         feat_df = pd.DataFrame(available, index=df.index)[ew_features]
@@ -320,10 +325,7 @@ class TeamDiagnosisModel(BaseModel):
         X_scaled = self._core._ew_scaler.transform(X_ew)
         sv = self._explainer.shap_values(X_scaled)
 
-        shap_dict = {
-            col: round(float(val), 4)
-            for col, val in zip(ew_features, sv[0])
-        }
+        shap_dict = {col: round(float(val), 4) for col, val in zip(ew_features, sv[0])}
         return dict(sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True))
 
     def _compute_training_shap_df(self) -> Optional[pd.DataFrame]:

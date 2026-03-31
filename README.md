@@ -27,6 +27,24 @@ uvicorn serving.api.main:app --port 8001 --reload
 ```
 Routes (per plan): `POST /predict/{model}`, `POST /nullclaw/chat`, `GET /models`.
 
+## API Endpoints
+- Health: `GET /health` (liveness), `GET /health/ready` (readiness incl. redis + registry), `GET /health/models` (registered models)
+- Player Projection: `POST /player-projection/predict`, `GET /player-projection/schema`
+- Positional Flexibility: `POST /positional-flexibility/predict`, `GET /positional-flexibility/schema`
+- Team Diagnosis: `POST /team-diagnosis/predict`, `GET /team-diagnosis/schema`
+- Draft Optimizer: `POST /draft-optimizer/predict` (sync), `POST /draft-optimizer/jobs` (enqueue async), `GET /draft-optimizer/jobs/{job_id}` (poll), `GET /draft-optimizer/schema`
+- Career Simulator: `POST /career-simulator/predict`, `GET /career-simulator/schema`
+- Roster Fit: `POST /roster-fit/predict`, `GET /roster-fit/schema`
+- Health Analyzer: `POST /health-analyzer/predict`, `GET /health-analyzer/schema`
+
+## Architecture (serving layer)
+- FastAPI app boots with a lifespan hook that loads config from `config/api.yaml`, initializes a Redis pool, and instantiates the model registry.
+- Model registry lazily loads model artifacts and exposes `predict` plus per-model schemas. Each endpoint uses `run_prediction` to standardize inputs, caching, and error handling.
+- Redis backs prediction result caching and async job tracking (draft optimizer jobs use a job key with TTL and background task execution).
+- Routers are split per model under `serving/api/routers/models/` and mounted in `serving/api/main.py`; health endpoints live in `serving/api/routers/health.py`.
+- Container build uses `docker/Dockerfile.api`; runtime config/env wired via `docker-compose.yml` (API + Redis). GH Actions workflow builds/pushes to GHCR and deploys to the VPS compose stack.
+- Diagram: see [files/architecture-diagram.md](files/architecture-diagram.md) for a visual of clients → CI/CD → GHCR → VPS (compose), FastAPI, Redis, registry, and artifacts.
+
 ## Analyze Artifacts
 - Open `notebook/artifact_analysis.ipynb` to inspect metadata, metrics, SHAP, residuals, and fold alignment for a given artifact directory.
 

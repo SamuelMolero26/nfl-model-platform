@@ -121,9 +121,9 @@ async def run_training(
             if label_col not in label_cols:
                 continue
             y_true_cont = y_holdout[label_col].values
-            y_pred_col  = flex_preds[:, i]
-            threshold   = label_medians.get(grp, float(np.median(y_true_cont)))
-            y_true_bin  = (y_true_cont > threshold).astype(int)
+            y_pred_col = flex_preds[:, i]
+            threshold = label_medians.get(grp, float(np.median(y_true_cont)))
+            y_true_bin = (y_true_cont > threshold).astype(int)
             n_pos = int(y_true_bin.sum())
 
             if n_pos < 5 or n_pos == len(y_true_bin):
@@ -131,7 +131,9 @@ async def run_training(
                 continue
 
             auc = float(roc_auc_score(y_true_bin, y_pred_col))
-            holdout_metrics["per_position"].setdefault(grp, {})["auc_roc"] = round(auc, 4)
+            holdout_metrics["per_position"].setdefault(grp, {})["auc_roc"] = round(
+                auc, 4
+            )
             aucs.append(auc)
 
         macro_auc = round(float(np.mean(aucs)), 4) if aucs else None
@@ -139,8 +141,8 @@ async def run_training(
 
         log.info("Per-position holdout metrics:")
         for pos, m in holdout_metrics["per_position"].items():
-            rho  = m.get("spearman_r")
-            auc  = m.get("auc_roc")
+            rho = m.get("spearman_r")
+            auc = m.get("auc_roc")
             npos = m.get("n_pos", "?")
             ntot = m.get("n_total", "?")
             if rho is not None:
@@ -198,7 +200,6 @@ async def run_training(
     # Player metadata parquet (needed by notebook and comparables)
     player_meta.to_parquet(features_dir / "player_meta.parquet", index=False)
     log.info(f"Player metadata cached → {features_dir / 'player_meta.parquet'}")
-
 
     artifact_path = flex_model.save()
     log.info(f"\nArtifact saved → {artifact_path}")

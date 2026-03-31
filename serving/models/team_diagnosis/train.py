@@ -200,7 +200,8 @@ def train(
             "ew_features": ew_cols_used,
             "ew_source_cols": (
                 list(wrapper._core._ew_feature_map.values())
-                if wrapper._core is not None else []
+                if wrapper._core is not None
+                else []
             ),
             "all_feature_cols": feat_cols,
             "feature_names": ew_cols_used,  # what BaseModel exposes

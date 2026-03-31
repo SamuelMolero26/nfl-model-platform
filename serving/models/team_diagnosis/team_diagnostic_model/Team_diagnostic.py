@@ -431,7 +431,9 @@ class TeamDiagnosticModel:
         self._expected_wins_model: Optional[RidgeCV] = None
         self._ew_scaler: Optional[StandardScaler] = None
         self._ew_features: list[str] = []
-        self._ew_feature_map: dict = {}   # feat_name → src_col, stored for SHAP reconstruction
+        self._ew_feature_map: dict = (
+            {}
+        )  # feat_name → src_col, stored for SHAP reconstruction
         self._is_fitted = False
 
     # ─────────────────────────────────────────────────────────────────────
@@ -464,12 +466,12 @@ class TeamDiagnosticModel:
         # Build regression feature matrix.
         # Defense EPA is sign-flipped: positive value = good outcome for model
         ew_feature_map = {
-            "ew_off_pass_epa":     "offense_total_epa_pass",
-            "ew_off_run_epa":      "offense_total_epa_run",
-            "ew_def_pass_epa":     "defense_total_epa_pass",   # will be negated
-            "ew_def_run_epa":      "defense_total_epa_run",    # will be negated
-            "ew_def_pass_epa_ave": "defense_ave_epa_pass",     # will be negated
-            "ew_turnover_margin":  "ew_turnover_margin",
+            "ew_off_pass_epa": "offense_total_epa_pass",
+            "ew_off_run_epa": "offense_total_epa_run",
+            "ew_def_pass_epa": "defense_total_epa_pass",  # will be negated
+            "ew_def_run_epa": "defense_total_epa_run",  # will be negated
+            "ew_def_pass_epa_ave": "defense_ave_epa_pass",  # will be negated
+            "ew_turnover_margin": "ew_turnover_margin",
         }
 
         self._ew_feature_map = ew_feature_map
@@ -804,7 +806,10 @@ class TeamDiagnosticModel:
         else:
             df["ew_turnover_margin"] = np.nan
 
-        if "offense_success_rate_pass" in df.columns and "defense_success_rate_pass" in df.columns:
+        if (
+            "offense_success_rate_pass" in df.columns
+            and "defense_success_rate_pass" in df.columns
+        ):
             denom = df["defense_success_rate_pass"].replace(0, np.nan)
             df["ew_success_rate_ratio"] = df["offense_success_rate_pass"] / denom
         else:
@@ -823,12 +828,12 @@ class TeamDiagnosticModel:
         df = self._engineer_ew_features(df)
 
         feat_map = {
-            "ew_off_pass_epa":     "offense_total_epa_pass",
-            "ew_off_run_epa":      "offense_total_epa_run",
-            "ew_def_pass_epa":     "defense_total_epa_pass",
-            "ew_def_run_epa":      "defense_total_epa_run",
+            "ew_off_pass_epa": "offense_total_epa_pass",
+            "ew_off_run_epa": "offense_total_epa_run",
+            "ew_def_pass_epa": "defense_total_epa_pass",
+            "ew_def_run_epa": "defense_total_epa_run",
             "ew_def_pass_epa_ave": "defense_ave_epa_pass",
-            "ew_turnover_margin":  "ew_turnover_margin",
+            "ew_turnover_margin": "ew_turnover_margin",
         }
         available = {}
         for feat_name, src_col in feat_map.items():

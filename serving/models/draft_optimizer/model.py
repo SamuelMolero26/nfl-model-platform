@@ -92,6 +92,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+
 # ---------------------------------------------------------------------------
 # Path bootstrap — CWD-first since python -m is run from the project root.
 # Falls back to walking upward from __file__ looking for known root markers.
@@ -104,6 +105,7 @@ def _find_project_root() -> Path:
         if (parent / "config.py").exists() or (parent / "duckdb_client.py").exists():
             return parent
     return cwd  # last resort — let the import error surface naturally
+
 
 _ROOT = _find_project_root()
 if str(_ROOT) not in sys.path:
@@ -125,14 +127,14 @@ _META_PATH = _ARTIFACT_DIR / "metadata.json"
 # Used as a hard fallback if calibration data is thin for a group.
 # ---------------------------------------------------------------------------
 _QUOTA_FALLBACK: dict[str, int] = {
-    "QB":    2,
+    "QB": 2,
     "SKILL": 8,
-    "OL":    6,
-    "DL":    6,
-    "LB":    4,
-    "DB":    6,
-    "SPEC":  2,
-    "UNK":   2,
+    "OL": 6,
+    "DL": 6,
+    "LB": 4,
+    "DB": 6,
+    "SPEC": 2,
+    "UNK": 2,
 }
 
 # Minimum need weight — positions below this threshold are excluded from X.
@@ -143,6 +145,7 @@ _NEED_THRESHOLD_FALLBACK = 0.10
 # ===========================================================================
 # DraftOptimizerModel
 # ===========================================================================
+
 
 class DraftOptimizerModel:
     """
@@ -161,13 +164,13 @@ class DraftOptimizerModel:
 
     def __init__(self) -> None:
         # Calibration state — None until calibrate() or load() is called
-        self.expected_av_curve:         dict[int, float]  = {}
-        self.positional_quota_defaults: dict[str, int]    = _QUOTA_FALLBACK.copy()
-        self.need_score_thresholds:     dict[str, float]  = {
+        self.expected_av_curve: dict[int, float] = {}
+        self.positional_quota_defaults: dict[str, int] = _QUOTA_FALLBACK.copy()
+        self.need_score_thresholds: dict[str, float] = {
             g: _NEED_THRESHOLD_FALLBACK for g in _QUOTA_FALLBACK
         }
-        self.pick_value_table:          dict[int, float]  = {}
-        self.calibration_year_range:    tuple[int, int]   = (0, 0)
+        self.pick_value_table: dict[int, float] = {}
+        self.calibration_year_range: tuple[int, int] = (0, 0)
         self._calibrated: bool = False
 
     # -----------------------------------------------------------------------
@@ -180,7 +183,7 @@ class DraftOptimizerModel:
         *,
         pick_value_df: Optional[pd.DataFrame] = None,
         calibration_year_start: int = 2000,
-        calibration_year_end:   int = 2020,
+        calibration_year_end: int = 2020,
     ) -> "DraftOptimizerModel":
         """
         Build and freeze calibration state from historical draft data.
@@ -198,24 +201,21 @@ class DraftOptimizerModel:
         """
         logger.info(
             "Calibrating draft optimizer on %s historical picks (%s–%s).",
-            f"{len(batch_df):,}", calibration_year_start, calibration_year_end,
+            f"{len(batch_df):,}",
+            calibration_year_start,
+            calibration_year_end,
         )
 
         df = batch_df.copy()
-        df["pick"]  = pd.to_numeric(df["pick"],  errors="coerce")
-        df["w_av"]  = pd.to_numeric(df["w_av"],  errors="coerce")
+        df["pick"] = pd.to_numeric(df["pick"], errors="coerce")
+        df["w_av"] = pd.to_numeric(df["w_av"], errors="coerce")
         df["season"] = pd.to_numeric(df["season"], errors="coerce")
 
         # --- 1. expected_av_curve: mean w_av by pick slot -------------------
         # Only score picks where w_av > 0 (players who never played get 0
         # and would drag the mean down unfairly for early slots).
         scored = df[df["w_av"].notna() & (df["w_av"] > 0)].copy()
-        curve = (
-            scored.groupby("pick")["w_av"]
-            .mean()
-            .round(3)
-            .to_dict()
-        )
+        curve = scored.groupby("pick")["w_av"].mean().round(3).to_dict()
         # Fill any gaps in the pick range with linear interpolation
         if curve:
             max_pick = max(curve.keys())
@@ -230,9 +230,7 @@ class DraftOptimizerModel:
         # (we want hard caps, not typical counts).
         if "position_group" in df.columns and "season" in df.columns:
             group_counts = (
-                df.groupby(["season", "position_group"])
-                .size()
-                .reset_index(name="n")
+                df.groupby(["season", "position_group"]).size().reset_index(name="n")
             )
             quotas = (
                 group_counts.groupby("position_group")["n"]
@@ -245,9 +243,7 @@ class DraftOptimizerModel:
                 **_QUOTA_FALLBACK,
                 **quotas,
             }
-        logger.info(
-            "  positional_quota_defaults: %s", self.positional_quota_defaults
-        )
+        logger.info("  positional_quota_defaults: %s", self.positional_quota_defaults)
 
         # --- 3. need_score_thresholds: bottom 10th percentile of group need --
         # The need threshold per group is calibrated as the 10th percentile
@@ -265,9 +261,7 @@ class DraftOptimizerModel:
                 g: thresholds.get(g, _NEED_THRESHOLD_FALLBACK * 100) / 100.0
                 for g in _QUOTA_FALLBACK
             }
-        logger.info(
-            "  need_score_thresholds: %s", self.need_score_thresholds
-        )
+        logger.info("  need_score_thresholds: %s", self.need_score_thresholds)
 
         # --- 4. pick_value_table: 0–100 normalised slot value ---------------
         if pick_value_df is not None and not pick_value_df.empty:
@@ -278,17 +272,13 @@ class DraftOptimizerModel:
             raw = dict(zip(pv["pick"].astype(int), pv["pick_value"]))
         else:
             # Synthetic log-decay: pick 1 = 100, pick 32 ≈ 58, pick 256 ≈ 10
-            raw = {
-                p: max(100.0 * (1.0 / np.log2(p + 1)), 1.0)
-                for p in range(1, 263)
-            }
+            raw = {p: max(100.0 * (1.0 / np.log2(p + 1)), 1.0) for p in range(1, 263)}
 
         # Normalise to 0–100
         vals = list(raw.values())
         lo, hi = min(vals), max(vals)
         self.pick_value_table = {
-            int(k): round((v - lo) / (hi - lo) * 100.0, 3)
-            for k, v in raw.items()
+            int(k): round((v - lo) / (hi - lo) * 100.0, 3) for k, v in raw.items()
         }
         logger.info(
             "  pick_value_table: %s slots (pick 1 = %.1f, pick 32 = %.1f).",
@@ -332,21 +322,25 @@ class DraftOptimizerModel:
                 "Load a calibrated artifact with DraftOptimizerModel.load()."
             )
 
-        client        = inputs["client"]
-        team_abbr     = inputs.get("team_abbr", "UNK")
-        draft_year    = int(inputs["draft_year"])
+        client = inputs["client"]
+        team_abbr = inputs.get("team_abbr", "UNK")
+        draft_year = int(inputs["draft_year"])
         available_picks: list[int] = [int(p) for p in inputs["available_picks"]]
         need_overrides: dict[str, float] = inputs.get("need_weights", {})
-        proj_model    = inputs.get("model", None)
+        proj_model = inputs.get("model", None)
 
         if not available_picks:
-            return self._error_result("available_picks is empty.", team_abbr, draft_year)
+            return self._error_result(
+                "available_picks is empty.", team_abbr, draft_year
+            )
 
         # -- 1. Build need weight vector ------------------------------------
         need_weights = self._build_need_weights(need_overrides)
 
         # -- 2. Fetch prospect scores (async, DataLakeClient) ---------------
-        from serving.models.draft_optimizer.features import fetch_prospect_scores  # noqa: PLC0415
+        from serving.models.draft_optimizer.features import (
+            fetch_prospect_scores,
+        )  # noqa: PLC0415
 
         min_pick = min(available_picks)
         max_pick = max(available_picks)
@@ -362,7 +356,8 @@ class DraftOptimizerModel:
         if prospects.empty:
             return self._error_result(
                 f"No prospects found for draft year {draft_year}.",
-                team_abbr, draft_year,
+                team_abbr,
+                draft_year,
             )
 
         # -- 3. Filter to eligible prospects (need threshold) ---------------
@@ -371,7 +366,8 @@ class DraftOptimizerModel:
             return self._error_result(
                 "All prospects filtered out by need threshold. "
                 "Try lowering need_weights or adding more positions.",
-                team_abbr, draft_year,
+                team_abbr,
+                draft_year,
             )
 
         # -- 4. Attach pick_value to prospects ------------------------------
@@ -384,12 +380,12 @@ class DraftOptimizerModel:
         )
 
         # -- 5. Build pick slot value vector --------------------------------
-        pick_values = [
-            self.pick_value_table.get(p, 1.0) for p in available_picks
-        ]
+        pick_values = [self.pick_value_table.get(p, 1.0) for p in available_picks]
 
         # -- 6. Solve CVXPY binary integer program --------------------------
-        board, solver_status = self._solve(prospects, available_picks, pick_values, need_weights)
+        board, solver_status = self._solve(
+            prospects, available_picks, pick_values, need_weights
+        )
 
         # -- 7. Attach value_over_adp to each assignment --------------------
         for rec in board:
@@ -397,9 +393,13 @@ class DraftOptimizerModel:
             expected = self.expected_av_curve.get(slot, 0.0)
             # Convert expected AV to 0–100 scale to match career_value_score
             # using the same normalisation range (0–max in curve)
-            max_av = max(self.expected_av_curve.values()) if self.expected_av_curve else 1.0
+            max_av = (
+                max(self.expected_av_curve.values()) if self.expected_av_curve else 1.0
+            )
             expected_scaled = (expected / max_av) * 100.0 if max_av > 0 else 0.0
-            rec["value_over_adp"] = round(rec["career_value_score"] - expected_scaled, 2)
+            rec["value_over_adp"] = round(
+                rec["career_value_score"] - expected_scaled, 2
+            )
 
         # -- 8. Top-3 alternatives per slot ---------------------------------
         alternatives = self._build_alternatives(
@@ -407,16 +407,16 @@ class DraftOptimizerModel:
         )
 
         return {
-            "board":        board,
+            "board": board,
             "alternatives": alternatives,
             "need_weights": need_weights,
             "solver_status": solver_status,
             "meta": {
-                "team":              team_abbr,
-                "draft_year":        draft_year,
-                "picks_used":        len(board),
+                "team": team_abbr,
+                "draft_year": draft_year,
+                "picks_used": len(board),
                 "prospects_considered": len(prospects),
-                "model_version":     "v1",
+                "model_version": "v1",
                 "calibration_years": list(self.calibration_year_range),
             },
         }
@@ -427,10 +427,10 @@ class DraftOptimizerModel:
 
     def _solve(
         self,
-        prospects:     pd.DataFrame,
+        prospects: pd.DataFrame,
         available_picks: list[int],
-        pick_values:   list[float],
-        need_weights:  dict[str, float],
+        pick_values: list[float],
+        need_weights: dict[str, float],
     ) -> tuple[list[dict], str]:
         """
         Solve the binary integer program.
@@ -449,17 +449,21 @@ class DraftOptimizerModel:
             return [], "error:cvxpy_not_installed"
 
         n_prospects = len(prospects)
-        n_picks     = len(available_picks)
+        n_picks = len(available_picks)
 
         if n_prospects == 0 or n_picks == 0:
             return [], "infeasible:empty_inputs"
 
         # Build objective coefficient matrix C[i, j]
         # C[i,j] = career_value_score[i] × need_weight[group[i]] × pick_value[j]
-        cvs   = prospects["career_value_score"].fillna(0).to_numpy()
-        nw    = prospects["position_group"].map(lambda g: need_weights.get(g, 0.5)).to_numpy()
-        pv    = np.array(pick_values, dtype=float)
-        C     = np.outer(cvs * nw, pv)  # shape (n_prospects, n_picks)
+        cvs = prospects["career_value_score"].fillna(0).to_numpy()
+        nw = (
+            prospects["position_group"]
+            .map(lambda g: need_weights.get(g, 0.5))
+            .to_numpy()
+        )
+        pv = np.array(pick_values, dtype=float)
+        C = np.outer(cvs * nw, pv)  # shape (n_prospects, n_picks)
 
         # Decision variable
         X = cp.Variable((n_prospects, n_picks), boolean=True)
@@ -510,20 +514,31 @@ class DraftOptimizerModel:
                 # Solver left this slot empty (infeasible or no gain)
                 continue
             row = prospect_rows.iloc[best_i]
-            board.append({
-                "pick":                int(pick_num),
-                "player_id":           str(row.get("player_id", "")),
-                "player_name":         str(row.get("player_name", "")),
-                "position":            str(row.get("position", "")),
-                "position_group":      str(row.get("position_group", "")),
-                "career_value_score":  round(float(row.get("career_value_score", 0)), 2),
-                "draft_value_percentile": round(float(row.get("draft_value_percentile") or 0), 2),
-                "value_over_adp":      0.0,   # filled in after solve
-                "need_weight":         round(float(need_weights.get(str(row.get("position_group", "")), 0.5)), 3),
-                "pick_value":          round(float(pv[j]), 3),
-                "composite_score":     round(float(C[best_i, j]), 4),
-                "projection_source":   str(row.get("projection_source", "unknown")),
-            })
+            board.append(
+                {
+                    "pick": int(pick_num),
+                    "player_id": str(row.get("player_id", "")),
+                    "player_name": str(row.get("player_name", "")),
+                    "position": str(row.get("position", "")),
+                    "position_group": str(row.get("position_group", "")),
+                    "career_value_score": round(
+                        float(row.get("career_value_score", 0)), 2
+                    ),
+                    "draft_value_percentile": round(
+                        float(row.get("draft_value_percentile") or 0), 2
+                    ),
+                    "value_over_adp": 0.0,  # filled in after solve
+                    "need_weight": round(
+                        float(
+                            need_weights.get(str(row.get("position_group", "")), 0.5)
+                        ),
+                        3,
+                    ),
+                    "pick_value": round(float(pv[j]), 3),
+                    "composite_score": round(float(C[best_i, j]), 4),
+                    "projection_source": str(row.get("projection_source", "unknown")),
+                }
+            )
 
         board.sort(key=lambda r: r["pick"])
         return board, "optimal"
@@ -538,7 +553,10 @@ class DraftOptimizerModel:
         All groups not in overrides get 0.5 — neutral, neither prioritised
         nor excluded.  Values are clamped to [0.0, 1.0].
         """
-        from serving.models.shared.positions import POSITION_GROUP_ORDER  # noqa: PLC0415
+        from serving.models.shared.positions import (
+            POSITION_GROUP_ORDER,
+        )  # noqa: PLC0415
+
         weights: dict[str, float] = {g: 0.5 for g in POSITION_GROUP_ORDER + ["UNK"]}
         for group, val in overrides.items():
             weights[group.upper()] = float(np.clip(val, 0.0, 1.0))
@@ -557,6 +575,7 @@ class DraftOptimizerModel:
         calibrated need_score_thresholds.  Callers can override need_weights
         to include any position explicitly (set weight ≥ threshold).
         """
+
         def _keep(row) -> bool:
             group = str(row.get("position_group", "UNK"))
             weight = need_weights.get(group, 0.5)
@@ -566,17 +585,15 @@ class DraftOptimizerModel:
         mask = prospects.apply(_keep, axis=1)
         dropped = (~mask).sum()
         if dropped:
-            logger.debug(
-                "Need threshold filtered out %s prospects.", f"{dropped:,}"
-            )
+            logger.debug("Need threshold filtered out %s prospects.", f"{dropped:,}")
         return prospects[mask].copy()
 
     def _build_alternatives(
         self,
-        prospects:      pd.DataFrame,
-        board:          list[dict],
+        prospects: pd.DataFrame,
+        board: list[dict],
         available_picks: list[int],
-        need_weights:   dict[str, float],
+        need_weights: dict[str, float],
     ) -> dict[int, list[dict]]:
         """
         For each pick slot, return the top-3 prospects NOT selected elsewhere.
@@ -589,7 +606,7 @@ class DraftOptimizerModel:
 
         for rec in board:
             pick_num = rec["pick"]
-            pv_slot  = self.pick_value_table.get(pick_num, 1.0)
+            pv_slot = self.pick_value_table.get(pick_num, 1.0)
 
             candidates = prospects[
                 ~prospects["player_id"].isin(assigned_ids - {rec["player_id"]})
@@ -609,11 +626,16 @@ class DraftOptimizerModel:
 
             alts[pick_num] = [
                 {
-                    "player_id":          str(r.get("player_id", "")),
-                    "player_name":        str(r.get("player_name", "")),
-                    "position":           str(r.get("position", "")),
-                    "career_value_score": round(float(r.get("career_value_score", 0)), 2),
-                    "need_weight":        round(float(need_weights.get(str(r.get("position_group", "")), 0.5)), 3),
+                    "player_id": str(r.get("player_id", "")),
+                    "player_name": str(r.get("player_name", "")),
+                    "position": str(r.get("position", "")),
+                    "career_value_score": round(
+                        float(r.get("career_value_score", 0)), 2
+                    ),
+                    "need_weight": round(
+                        float(need_weights.get(str(r.get("position_group", "")), 0.5)),
+                        3,
+                    ),
                 }
                 for _, r in top3.iterrows()
             ]
@@ -624,14 +646,14 @@ class DraftOptimizerModel:
     def _error_result(message: str, team_abbr: str, draft_year: int) -> dict:
         logger.error("DraftOptimizer predict error: %s", message)
         return {
-            "board":         [],
-            "alternatives":  {},
-            "need_weights":  {},
+            "board": [],
+            "alternatives": {},
+            "need_weights": {},
             "solver_status": f"error:{message}",
             "meta": {
-                "team":       team_abbr,
+                "team": team_abbr,
                 "draft_year": draft_year,
-                "error":      message,
+                "error": message,
             },
         }
 
@@ -646,30 +668,30 @@ class DraftOptimizerModel:
         The pkl contains only the four calibration lookup tables and the year
         range — not the CVXPY problem structure, which is rebuilt each call.
         """
-        pkl_path  = Path(path) if path else _PKL_PATH
+        pkl_path = Path(path) if path else _PKL_PATH
         meta_path = pkl_path.parent / "metadata.json"
         pkl_path.parent.mkdir(parents=True, exist_ok=True)
 
         state = {
-            "expected_av_curve":          self.expected_av_curve,
-            "positional_quota_defaults":  self.positional_quota_defaults,
-            "need_score_thresholds":      self.need_score_thresholds,
-            "pick_value_table":           self.pick_value_table,
-            "calibration_year_range":     self.calibration_year_range,
+            "expected_av_curve": self.expected_av_curve,
+            "positional_quota_defaults": self.positional_quota_defaults,
+            "need_score_thresholds": self.need_score_thresholds,
+            "pick_value_table": self.pick_value_table,
+            "calibration_year_range": self.calibration_year_range,
         }
         with open(pkl_path, "wb") as f:
             pickle.dump(state, f)
         logger.info("DraftOptimizerModel saved → %s", pkl_path)
 
         metadata = {
-            "model":                  "draft_optimizer",
-            "version":                "v1",
-            "saved_at":               datetime.now(timezone.utc).isoformat(),
+            "model": "draft_optimizer",
+            "version": "v1",
+            "saved_at": datetime.now(timezone.utc).isoformat(),
             "calibration_year_range": list(self.calibration_year_range),
-            "n_pick_slots":           len(self.pick_value_table),
-            "n_av_curve_slots":       len(self.expected_av_curve),
-            "positional_quotas":      self.positional_quota_defaults,
-            "solver":                 "GLPK_MI (CVXPY)",
+            "n_pick_slots": len(self.pick_value_table),
+            "n_av_curve_slots": len(self.expected_av_curve),
+            "positional_quotas": self.positional_quota_defaults,
+            "solver": "GLPK_MI (CVXPY)",
             "description": (
                 "Calibration state for the CVXPY draft board optimizer. "
                 "Contains expected_av_curve, positional_quota_defaults, "
@@ -697,16 +719,17 @@ class DraftOptimizerModel:
             state: dict = pickle.load(f)
 
         obj = cls()
-        obj.expected_av_curve          = state.get("expected_av_curve",         {})
-        obj.positional_quota_defaults  = state.get("positional_quota_defaults", _QUOTA_FALLBACK.copy())
-        obj.need_score_thresholds      = state.get("need_score_thresholds",      {})
-        obj.pick_value_table           = state.get("pick_value_table",           {})
-        obj.calibration_year_range     = tuple(state.get("calibration_year_range", (0, 0)))
+        obj.expected_av_curve = state.get("expected_av_curve", {})
+        obj.positional_quota_defaults = state.get(
+            "positional_quota_defaults", _QUOTA_FALLBACK.copy()
+        )
+        obj.need_score_thresholds = state.get("need_score_thresholds", {})
+        obj.pick_value_table = state.get("pick_value_table", {})
+        obj.calibration_year_range = tuple(state.get("calibration_year_range", (0, 0)))
         obj._calibrated = True
 
         logger.info(
-            "DraftOptimizerModel loaded from %s "
-            "(calibrated %s–%s, %s pick slots).",
+            "DraftOptimizerModel loaded from %s " "(calibrated %s–%s, %s pick slots).",
             pkl_path,
             obj.calibration_year_range[0],
             obj.calibration_year_range[1],

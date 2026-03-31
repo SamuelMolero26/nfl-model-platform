@@ -55,17 +55,34 @@ log = logging.getLogger(__name__)
 # ── Position group mapping ────────────────────────────────────────────────────
 
 _POS_GROUPS: dict[str, str] = {
-    "QB":  "QB",
-    "RB":  "RB",  "HB": "RB",  "FB": "RB",
-    "WR":  "WR",
-    "TE":  "TE",
-    "OT":  "OL",  "OG": "OL",  "C":  "OL",  "G": "OL",  "T": "OL",  "OL": "OL",
-    "DE":  "EDGE", "OLB": "EDGE",
-    "DT":  "IDL", "NT": "IDL", "DL": "IDL",
-    "ILB": "LB",  "MLB": "LB", "LB": "LB",
-    "CB":  "CB",
-    "S":   "DB",  "FS": "DB",  "SS": "DB",  "DB": "DB",
-    "K":   "SPEC", "P": "SPEC", "LS": "SPEC",
+    "QB": "QB",
+    "RB": "RB",
+    "HB": "RB",
+    "FB": "RB",
+    "WR": "WR",
+    "TE": "TE",
+    "OT": "OL",
+    "OG": "OL",
+    "C": "OL",
+    "G": "OL",
+    "T": "OL",
+    "OL": "OL",
+    "DE": "EDGE",
+    "OLB": "EDGE",
+    "DT": "IDL",
+    "NT": "IDL",
+    "DL": "IDL",
+    "ILB": "LB",
+    "MLB": "LB",
+    "LB": "LB",
+    "CB": "CB",
+    "S": "DB",
+    "FS": "DB",
+    "SS": "DB",
+    "DB": "DB",
+    "K": "SPEC",
+    "P": "SPEC",
+    "LS": "SPEC",
 }
 
 
@@ -79,41 +96,46 @@ def _pos_group(pos: str) -> str:
 
 # Tier 1: always available from team_stats
 SCHEME_FEATURES_T1 = [
-    "pass_rate",            # fraction of plays that are passes
-    "air_yards_scheme",     # avg depth-of-target — vertical vs. short game
-    "yac_scheme",           # avg yards after catch — YAC vs. contested-catch
+    "pass_rate",  # fraction of plays that are passes
+    "air_yards_scheme",  # avg depth-of-target — vertical vs. short game
+    "yac_scheme",  # avg yards after catch — YAC vs. contested-catch
     "pass_epa_efficiency",  # avg EPA per pass play
-    "run_epa_efficiency",   # avg EPA per run play
-    "pass_success_rate",    # passing consistency
-    "run_success_rate",     # running consistency
-    "def_pass_scheme",      # pass-defense emphasis (sign-flipped EPA)
-    "def_run_scheme",       # run-defense emphasis  (sign-flipped EPA)
+    "run_epa_efficiency",  # avg EPA per run play
+    "pass_success_rate",  # passing consistency
+    "run_success_rate",  # running consistency
+    "def_pass_scheme",  # pass-defense emphasis (sign-flipped EPA)
+    "def_run_scheme",  # run-defense emphasis  (sign-flipped EPA)
 ]
 
 # Tier 2: added when snap_counts is available (Stage 0)
 SCHEME_FEATURES_T2 = [
-    "wr_snap_share", "rb_snap_share", "te_snap_share",
-    "ol_snap_share", "dl_snap_share", "lb_snap_share", "db_snap_share",
+    "wr_snap_share",
+    "rb_snap_share",
+    "te_snap_share",
+    "ol_snap_share",
+    "dl_snap_share",
+    "lb_snap_share",
+    "db_snap_share",
 ]
 
 # ── Player dimension columns ──────────────────────────────────────────────────
 
 # From player_athletic_profiles (gold, pre-computed by athletic_scores.py)
 ATHLETIC_DIMS = [
-    "speed_score",    # Barnwell formula
+    "speed_score",  # Barnwell formula
     "agility_score",  # −three_cone_z + −shuttle_z  (pos-group z-scored)
-    "burst_score",    # vertical_z + broad_jump_z   (pos-group z-scored)
-    "strength_score", # bench_reps_z                (pos-group z-scored)
-    "size_score",     # height × weight / pos_avg
+    "burst_score",  # vertical_z + broad_jump_z   (pos-group z-scored)
+    "strength_score",  # bench_reps_z                (pos-group z-scored)
+    "size_score",  # height × weight / pos_avg
 ]
 
 # From player_production_profiles (gold, pre-computed by production_scores.py)
 PRODUCTION_DIMS = [
-    "snap_share",           # mean offense_pct across reg-season weeks
-    "epa_per_game",         # total EPA / games played
-    "nfl_production_score", # composite z-score (already normalised)
-    "target_share",         # WR / TE / RB only — NaN for others
-    "passing_cpoe",         # QB only — NaN for all others
+    "snap_share",  # mean offense_pct across reg-season weeks
+    "epa_per_game",  # total EPA / games played
+    "nfl_production_score",  # composite z-score (already normalised)
+    "target_share",  # WR / TE / RB only — NaN for others
+    "passing_cpoe",  # QB only — NaN for all others
 ]
 
 # Raw dimensions that need z-scoring here (not pre-normalised in gold tables)
@@ -126,86 +148,89 @@ _NEEDS_ZSCORE = {"speed_score", "snap_share", "epa_per_game", "size_score"}
 
 DIMENSION_PAIRS: dict[str, list[tuple[str, str]]] = {
     "WR": [
-        ("speed_score",          "air_yards_scheme"),
-        ("agility_score",        "yac_scheme"),
-        ("size_score",           "pass_success_rate"),
-        ("burst_score",          "air_yards_scheme"),
+        ("speed_score", "air_yards_scheme"),
+        ("agility_score", "yac_scheme"),
+        ("size_score", "pass_success_rate"),
+        ("burst_score", "air_yards_scheme"),
         ("nfl_production_score", "pass_rate"),
-        ("target_share",         "pass_rate"),
+        ("target_share", "pass_rate"),
     ],
     "RB": [
-        ("speed_score",          "run_epa_efficiency"),
-        ("agility_score",        "yac_scheme"),
-        ("strength_score",       "run_success_rate"),
-        ("burst_score",          "run_epa_efficiency"),
+        ("speed_score", "run_epa_efficiency"),
+        ("agility_score", "yac_scheme"),
+        ("strength_score", "run_success_rate"),
+        ("burst_score", "run_epa_efficiency"),
         ("nfl_production_score", "pass_rate"),
     ],
     "TE": [
-        ("size_score",           "run_epa_efficiency"),
-        ("strength_score",       "run_success_rate"),
-        ("speed_score",          "air_yards_scheme"),
-        ("agility_score",        "yac_scheme"),
+        ("size_score", "run_epa_efficiency"),
+        ("strength_score", "run_success_rate"),
+        ("speed_score", "air_yards_scheme"),
+        ("agility_score", "yac_scheme"),
         ("nfl_production_score", "pass_rate"),
     ],
     "QB": [
-        ("epa_per_game",         "pass_epa_efficiency"),
-        ("passing_cpoe",         "air_yards_scheme"),
+        ("epa_per_game", "pass_epa_efficiency"),
+        ("passing_cpoe", "air_yards_scheme"),
         ("nfl_production_score", "pass_rate"),
-        ("snap_share",           "pass_rate"),
+        ("snap_share", "pass_rate"),
     ],
     "OL": [
-        ("strength_score",       "run_epa_efficiency"),
-        ("size_score",           "run_success_rate"),
-        ("agility_score",        "pass_epa_efficiency"),
+        ("strength_score", "run_epa_efficiency"),
+        ("size_score", "run_success_rate"),
+        ("agility_score", "pass_epa_efficiency"),
     ],
     "EDGE": [
-        ("speed_score",          "def_pass_scheme"),
-        ("burst_score",          "def_pass_scheme"),
-        ("strength_score",       "def_run_scheme"),
-        ("size_score",           "def_run_scheme"),
+        ("speed_score", "def_pass_scheme"),
+        ("burst_score", "def_pass_scheme"),
+        ("strength_score", "def_run_scheme"),
+        ("size_score", "def_run_scheme"),
     ],
     "IDL": [
-        ("strength_score",       "def_run_scheme"),
-        ("size_score",           "def_run_scheme"),
-        ("burst_score",          "def_pass_scheme"),
-        ("agility_score",        "def_pass_scheme"),
+        ("strength_score", "def_run_scheme"),
+        ("size_score", "def_run_scheme"),
+        ("burst_score", "def_pass_scheme"),
+        ("agility_score", "def_pass_scheme"),
     ],
     "LB": [
-        ("speed_score",          "def_pass_scheme"),
-        ("agility_score",        "def_pass_scheme"),
-        ("strength_score",       "def_run_scheme"),
-        ("size_score",           "def_run_scheme"),
+        ("speed_score", "def_pass_scheme"),
+        ("agility_score", "def_pass_scheme"),
+        ("strength_score", "def_run_scheme"),
+        ("size_score", "def_run_scheme"),
     ],
     "CB": [
-        ("speed_score",          "def_pass_scheme"),
-        ("agility_score",        "def_pass_scheme"),
-        ("burst_score",          "def_pass_scheme"),
-        ("size_score",           "def_run_scheme"),
+        ("speed_score", "def_pass_scheme"),
+        ("agility_score", "def_pass_scheme"),
+        ("burst_score", "def_pass_scheme"),
+        ("size_score", "def_run_scheme"),
     ],
     "DB": [
-        ("speed_score",          "def_pass_scheme"),
-        ("agility_score",        "def_pass_scheme"),
-        ("strength_score",       "def_run_scheme"),
-        ("size_score",           "def_run_scheme"),
+        ("speed_score", "def_pass_scheme"),
+        ("agility_score", "def_pass_scheme"),
+        ("strength_score", "def_run_scheme"),
+        ("size_score", "def_run_scheme"),
     ],
 }
 
 DEFAULT_PAIRS: list[tuple[str, str]] = [
-    ("speed_score",          "pass_rate"),
-    ("agility_score",        "pass_success_rate"),
+    ("speed_score", "pass_rate"),
+    ("agility_score", "pass_success_rate"),
     ("nfl_production_score", "pass_epa_efficiency"),
 ]
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
+
 def _zscore_within(df: pd.DataFrame, col: str, groups: list[str]) -> pd.Series:
     """Z-score *col* within each combination of group columns (min 3 obs)."""
+
     def _z(x: pd.Series) -> pd.Series:
         if x.notna().sum() < 3:
             return pd.Series(np.nan, index=x.index)
         mu, sigma = x.mean(), x.std(ddof=0)
         return (x - mu) / sigma if sigma > 0 else pd.Series(0.0, index=x.index)
+
     return df.groupby(groups)[col].transform(_z)
 
 
@@ -214,6 +239,7 @@ def _zscore_within_season(df: pd.DataFrame, col: str) -> pd.Series:
 
 
 # ── build_team_scheme_profile ─────────────────────────────────────────────────
+
 
 def build_team_scheme_profile(
     team_stats_df: pd.DataFrame,
@@ -245,17 +271,31 @@ def build_team_scheme_profile(
 
     # ── Tier 1 ───────────────────────────────────────────────────────────────
     n_pass = df.get("offense_n_plays_pass", pd.Series(np.nan, index=df.index))
-    n_run  = df.get("offense_n_plays_run",  pd.Series(np.nan, index=df.index))
-    out["_pass_rate"]           = n_pass / (n_pass + n_run).replace(0, np.nan)
-    out["_air_yards_scheme"]    = df.get("offense_ave_air_yards",     pd.Series(np.nan, index=df.index))
-    out["_yac_scheme"]          = df.get("offense_ave_yac",           pd.Series(np.nan, index=df.index))
-    out["_pass_epa_efficiency"] = df.get("offense_ave_epa_pass",      pd.Series(np.nan, index=df.index))
-    out["_run_epa_efficiency"]  = df.get("offense_ave_epa_run",       pd.Series(np.nan, index=df.index))
-    out["_pass_success_rate"]   = df.get("offense_success_rate_pass", pd.Series(np.nan, index=df.index))
-    out["_run_success_rate"]    = df.get("offense_success_rate_run",  pd.Series(np.nan, index=df.index))
+    n_run = df.get("offense_n_plays_run", pd.Series(np.nan, index=df.index))
+    out["_pass_rate"] = n_pass / (n_pass + n_run).replace(0, np.nan)
+    out["_air_yards_scheme"] = df.get(
+        "offense_ave_air_yards", pd.Series(np.nan, index=df.index)
+    )
+    out["_yac_scheme"] = df.get("offense_ave_yac", pd.Series(np.nan, index=df.index))
+    out["_pass_epa_efficiency"] = df.get(
+        "offense_ave_epa_pass", pd.Series(np.nan, index=df.index)
+    )
+    out["_run_epa_efficiency"] = df.get(
+        "offense_ave_epa_run", pd.Series(np.nan, index=df.index)
+    )
+    out["_pass_success_rate"] = df.get(
+        "offense_success_rate_pass", pd.Series(np.nan, index=df.index)
+    )
+    out["_run_success_rate"] = df.get(
+        "offense_success_rate_run", pd.Series(np.nan, index=df.index)
+    )
     # Sign-flip: higher = better / more emphatic defense
-    out["_def_pass_scheme"]     = -df.get("defense_ave_epa_pass", pd.Series(np.nan, index=df.index))
-    out["_def_run_scheme"]      = -df.get("defense_ave_epa_run",  pd.Series(np.nan, index=df.index))
+    out["_def_pass_scheme"] = -df.get(
+        "defense_ave_epa_pass", pd.Series(np.nan, index=df.index)
+    )
+    out["_def_run_scheme"] = -df.get(
+        "defense_ave_epa_run", pd.Series(np.nan, index=df.index)
+    )
 
     for raw in [c for c in out.columns if c.startswith("_")]:
         out[raw[1:]] = _zscore_within_season(out, raw)
@@ -263,38 +303,53 @@ def build_team_scheme_profile(
 
     # ── Tier 2 ───────────────────────────────────────────────────────────────
     _PG_SNAP: dict[str, str] = {
-        "WR": "wr_snap_share", "RB": "rb_snap_share", "TE": "te_snap_share",
-        "OL": "ol_snap_share", "EDGE": "dl_snap_share", "IDL": "dl_snap_share",
-        "LB": "lb_snap_share", "CB": "db_snap_share",  "DB": "db_snap_share",
+        "WR": "wr_snap_share",
+        "RB": "rb_snap_share",
+        "TE": "te_snap_share",
+        "OL": "ol_snap_share",
+        "EDGE": "dl_snap_share",
+        "IDL": "dl_snap_share",
+        "LB": "lb_snap_share",
+        "CB": "db_snap_share",
+        "DB": "db_snap_share",
     }
     if snap_counts_df is not None and not snap_counts_df.empty:
         sc = snap_counts_df.copy()
         if "game_type" in sc.columns:
             sc = sc[sc["game_type"] == "REG"]
         if "position" in sc.columns and "offense_snaps" in sc.columns:
-            sc["_pg"]  = sc["position"].map(_pos_group)
+            sc["_pg"] = sc["position"].map(_pos_group)
             sc["_col"] = sc["_pg"].map(_PG_SNAP)
             totals = (
                 sc.groupby(["team", "season"])["offense_snaps"]
-                .sum().reset_index(name="_total")
+                .sum()
+                .reset_index(name="_total")
             )
             pos_snaps = (
                 sc[sc["_col"].notna()]
                 .groupby(["team", "season", "_col"])["offense_snaps"]
-                .sum().reset_index()
+                .sum()
+                .reset_index()
                 .merge(totals, on=["team", "season"], how="left")
             )
-            pos_snaps["_share"] = pos_snaps["offense_snaps"] / pos_snaps["_total"].replace(0, np.nan)
+            pos_snaps["_share"] = pos_snaps["offense_snaps"] / pos_snaps[
+                "_total"
+            ].replace(0, np.nan)
             wide = pos_snaps.pivot_table(
-                index=["team", "season"], columns="_col",
-                values="_share", aggfunc="sum",
+                index=["team", "season"],
+                columns="_col",
+                values="_share",
+                aggfunc="sum",
             ).reset_index()
             wide.columns.name = None
             for col in SCHEME_FEATURES_T2:
                 if col not in wide.columns:
                     wide[col] = np.nan
-            out = out.merge(wide[["team", "season"] + SCHEME_FEATURES_T2],
-                            on=["team", "season"], how="left")
+            out = out.merge(
+                wide[["team", "season"] + SCHEME_FEATURES_T2],
+                on=["team", "season"],
+                how="left",
+            )
             for col in SCHEME_FEATURES_T2:
                 out[col] = _zscore_within_season(out, col)
             log.info("Tier 2 snap share features added.")
@@ -303,12 +358,17 @@ def build_team_scheme_profile(
     else:
         log.info("snap_counts_df not supplied — Tier 2 skipped.")
 
-    n_feats = len([c for c in SCHEME_FEATURES_T1 + SCHEME_FEATURES_T2 if c in out.columns])
-    log.info("build_team_scheme_profile → %s rows | %d features", f"{len(out):,}", n_feats)
+    n_feats = len(
+        [c for c in SCHEME_FEATURES_T1 + SCHEME_FEATURES_T2 if c in out.columns]
+    )
+    log.info(
+        "build_team_scheme_profile → %s rows | %d features", f"{len(out):,}", n_feats
+    )
     return out
 
 
 # ── build_player_roster_profile ───────────────────────────────────────────────
+
 
 def build_player_roster_profile(
     athletic_df: pd.DataFrame,
@@ -330,7 +390,7 @@ def build_player_roster_profile(
     PRODUCTION_DIMS columns. Raw dimensions are z-scored within
     (position_group, season).
     """
-    ath  = athletic_df.copy()
+    ath = athletic_df.copy()
     prod = production_df.copy()
 
     for df in [ath, prod]:
@@ -340,10 +400,14 @@ def build_player_roster_profile(
     if "season" in prod.columns:
         prod["season"] = pd.to_numeric(prod["season"], errors="coerce").astype("Int64")
 
-    ath_slim = ath[
-        ["player_id", "position_group"]
-        + [c for c in ATHLETIC_DIMS if c in ath.columns]
-    ].dropna(subset=["player_id"]).drop_duplicates(subset=["player_id"], keep="last")
+    ath_slim = (
+        ath[
+            ["player_id", "position_group"]
+            + [c for c in ATHLETIC_DIMS if c in ath.columns]
+        ]
+        .dropna(subset=["player_id"])
+        .drop_duplicates(subset=["player_id"], keep="last")
+    )
 
     result = prod.merge(ath_slim, on="player_id", how="outer", suffixes=("", "_ath"))
 
@@ -353,7 +417,9 @@ def build_player_roster_profile(
         )
 
     result["position_group"] = result["position_group"].fillna("UNK")
-    result["season"] = result.get("season", pd.Series(dtype="Int64")).fillna(0).astype("Int64")
+    result["season"] = (
+        result.get("season", pd.Series(dtype="Int64")).fillna(0).astype("Int64")
+    )
 
     for col in _NEEDS_ZSCORE:
         if col in result.columns:
@@ -366,7 +432,9 @@ def build_player_roster_profile(
 
     meta = ["player_id", "player_name", "position", "position_group", "season"]
     dims = ATHLETIC_DIMS + PRODUCTION_DIMS
-    keep = [c for c in meta if c in result.columns] + [c for c in dims if c in result.columns]
+    keep = [c for c in meta if c in result.columns] + [
+        c for c in dims if c in result.columns
+    ]
     result = result[result["position"].notna() | result["nfl_production_score"].notna()]
     result = result[keep].reset_index(drop=True)
 
@@ -374,13 +442,22 @@ def build_player_roster_profile(
         "build_player_roster_profile → %s player-seasons | "
         "%s with athletic dims | %s with production dims",
         f"{len(result):,}",
-        f"{result['speed_score'].notna().sum():,}" if "speed_score" in result.columns else "0",
-        f"{result['nfl_production_score'].notna().sum():,}" if "nfl_production_score" in result.columns else "0",
+        (
+            f"{result['speed_score'].notna().sum():,}"
+            if "speed_score" in result.columns
+            else "0"
+        ),
+        (
+            f"{result['nfl_production_score'].notna().sum():,}"
+            if "nfl_production_score" in result.columns
+            else "0"
+        ),
     )
     return result
 
 
 # ── Data lake query helpers ───────────────────────────────────────────────────
+
 
 async def get_team_stats(
     client: DataLakeClient,
@@ -393,8 +470,8 @@ async def get_team_stats(
     return await client.query(sql)
 
 
-
 # ── fetch_feature_matrices ────────────────────────────────────────────────────
+
 
 async def fetch_team_scheme_profiles(
     client: DataLakeClient,
@@ -446,7 +523,10 @@ async def fetch_player_roster_profiles(
     log.info("  production_profiles: %d rows", len(production))
 
     # Back-fill player_name into production from athletic profiles
-    if "player_name" not in production.columns or production["player_name"].isna().all():
+    if (
+        "player_name" not in production.columns
+        or production["player_name"].isna().all()
+    ):
         name_map = (
             athletic.dropna(subset=["player_id"])[["player_id", "player_name"]]
             .drop_duplicates(subset=["player_id"])
