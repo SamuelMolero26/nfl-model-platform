@@ -91,17 +91,20 @@ jobs:
 
       - name: SSH deploy
         uses: appleboy/ssh-action@v1
+        env:
+          SUDO_PASS: ${{ secrets.SUDO_PASS }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: SUDO_PASS
           script: |
             set -e
             APP_DIR="/opt/nfl-model-platform"
 
             # Ensure /opt dir exists and is owned by deploy user
-            sudo mkdir -p "$APP_DIR"
-            sudo chown "$USER:$USER" "$APP_DIR"
+            echo "$SUDO_PASS" | sudo -S mkdir -p "$APP_DIR"
+            echo "$SUDO_PASS" | sudo -S chown "$USER:$USER" "$APP_DIR"
 
             cd "$APP_DIR"
             if [ ! -d .git ]; then
