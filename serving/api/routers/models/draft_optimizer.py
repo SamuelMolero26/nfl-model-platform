@@ -59,7 +59,7 @@ async def poll_job(job_id: str, redis: Redis):
 @router.get("/draft-optimizer/health")
 async def health(registry: Registry):
     """Check whether the draft optimizer model is loaded and ready."""
-    loaded = "draft_optimizer" in registry.list_models()
+    loaded = any(m.get("model_name") == "draft_optimizer" for m in registry.list_models())
     return {"status": "ok" if loaded else "unavailable", "model": "draft_optimizer", "loaded": loaded}
 
 
