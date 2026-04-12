@@ -31,3 +31,8 @@ artifacts/
 notebook/outputs/
 *.parquet
 *.pkl
+
+# files
+files/architecture_diagram.md
+files/model_deep_dive.md
+files/platform_summary_report.md
